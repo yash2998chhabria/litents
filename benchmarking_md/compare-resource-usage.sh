@@ -119,6 +119,11 @@ make_tmp() {
 litents_init_rss_tmp="$(make_tmp)"
 litents_new_rss_tmp="$(make_tmp)"
 litents_status_rss_tmp="$(make_tmp)"
+litents_dash_rss_tmp="$(make_tmp)"
+litents_peek_rss_tmp="$(make_tmp)"
+litents_discover_rss_tmp="$(make_tmp)"
+litents_adopt_rss_tmp="$(make_tmp)"
+litents_untrack_rss_tmp="$(make_tmp)"
 litents_stop_rss_tmp="$(make_tmp)"
 litents_clean_rss_tmp="$(make_tmp)"
 zellij_init_rss_tmp="$(make_tmp)"
@@ -137,6 +142,11 @@ aoe_remove_rss_tmp="$(make_tmp)"
 litents_init_cpu_tmp="$(make_tmp)"
 litents_new_cpu_tmp="$(make_tmp)"
 litents_status_cpu_tmp="$(make_tmp)"
+litents_dash_cpu_tmp="$(make_tmp)"
+litents_peek_cpu_tmp="$(make_tmp)"
+litents_discover_cpu_tmp="$(make_tmp)"
+litents_adopt_cpu_tmp="$(make_tmp)"
+litents_untrack_cpu_tmp="$(make_tmp)"
 litents_stop_cpu_tmp="$(make_tmp)"
 litents_clean_cpu_tmp="$(make_tmp)"
 zellij_init_cpu_tmp="$(make_tmp)"
@@ -200,6 +210,16 @@ EOF_CODEX
   record_resources "$litents_init_rss_tmp" "$litents_init_cpu_tmp" "$run_log" env "${base_env[@]}" "$LITENTS_BIN" init --no-watch --session "$litents_session" "$repo_dir"
   record_resources "$litents_new_rss_tmp" "$litents_new_cpu_tmp" "$run_log" env "${base_env[@]}" "$LITENTS_BIN" new --project "$project_name" --no-worktree --prompt "sleep $WORKLOAD_SECONDS; echo done" "$agent_name"
   record_resources "$litents_status_rss_tmp" "$litents_status_cpu_tmp" "$run_log" env "${base_env[@]}" "$LITENTS_BIN" status --project "$project_name"
+  record_resources "$litents_dash_rss_tmp" "$litents_dash_cpu_tmp" "$run_log" env "${base_env[@]}" "$LITENTS_BIN" dash --project "$project_name" --preview "$agent_name" --n 5
+  record_resources "$litents_peek_rss_tmp" "$litents_peek_cpu_tmp" "$run_log" env "${base_env[@]}" "$LITENTS_BIN" peek --project "$project_name" --n 5 "$agent_name"
+
+  unmanaged_window="codex-unmanaged-${i}"
+  unmanaged_pane=$(tmux new-window -t "$litents_session" -n "$unmanaged_window" -c "$repo_dir" -P -F "#{pane_id}" "$agent_script")
+  record_resources "$litents_discover_rss_tmp" "$litents_discover_cpu_tmp" "$run_log" env "${base_env[@]}" "$LITENTS_BIN" discover
+  record_resources "$litents_adopt_rss_tmp" "$litents_adopt_cpu_tmp" "$run_log" env "${base_env[@]}" "$LITENTS_BIN" adopt "$unmanaged_pane" --project "$project_name" --id "adopted-$i"
+  record_resources "$litents_untrack_rss_tmp" "$litents_untrack_cpu_tmp" "$run_log" env "${base_env[@]}" "$LITENTS_BIN" untrack --project "$project_name" "adopted-$i"
+  tmux kill-window -t "${litents_session}:${unmanaged_window}" >/dev/null 2>&1 || true
+
   record_resources "$litents_stop_rss_tmp" "$litents_stop_cpu_tmp" "$run_log" env "${base_env[@]}" "$LITENTS_BIN" stop --force --project "$project_name" "$agent_name"
   record_resources "$litents_clean_rss_tmp" "$litents_clean_cpu_tmp" "$run_log" env "${base_env[@]}" "$LITENTS_BIN" clean --project "$project_name" --worktrees
 
@@ -287,6 +307,11 @@ done
 litents_init_rss_stats=$(print_stats "$litents_init_rss_tmp" "MiB")
 litents_new_rss_stats=$(print_stats "$litents_new_rss_tmp" "MiB")
 litents_status_rss_stats=$(print_stats "$litents_status_rss_tmp" "MiB")
+litents_dash_rss_stats=$(print_stats "$litents_dash_rss_tmp" "MiB")
+litents_peek_rss_stats=$(print_stats "$litents_peek_rss_tmp" "MiB")
+litents_discover_rss_stats=$(print_stats "$litents_discover_rss_tmp" "MiB")
+litents_adopt_rss_stats=$(print_stats "$litents_adopt_rss_tmp" "MiB")
+litents_untrack_rss_stats=$(print_stats "$litents_untrack_rss_tmp" "MiB")
 litents_stop_rss_stats=$(print_stats "$litents_stop_rss_tmp" "MiB")
 litents_clean_rss_stats=$(print_stats "$litents_clean_rss_tmp" "MiB")
 zellij_init_rss_stats=$(print_stats "$zellij_init_rss_tmp" "MiB")
@@ -305,6 +330,11 @@ aoe_remove_rss_stats=$(print_stats "$aoe_remove_rss_tmp" "MiB")
 litents_init_cpu_stats=$(print_stats "$litents_init_cpu_tmp" "ms")
 litents_new_cpu_stats=$(print_stats "$litents_new_cpu_tmp" "ms")
 litents_status_cpu_stats=$(print_stats "$litents_status_cpu_tmp" "ms")
+litents_dash_cpu_stats=$(print_stats "$litents_dash_cpu_tmp" "ms")
+litents_peek_cpu_stats=$(print_stats "$litents_peek_cpu_tmp" "ms")
+litents_discover_cpu_stats=$(print_stats "$litents_discover_cpu_tmp" "ms")
+litents_adopt_cpu_stats=$(print_stats "$litents_adopt_cpu_tmp" "ms")
+litents_untrack_cpu_stats=$(print_stats "$litents_untrack_cpu_tmp" "ms")
 litents_stop_cpu_stats=$(print_stats "$litents_stop_cpu_tmp" "ms")
 litents_clean_cpu_stats=$(print_stats "$litents_clean_cpu_tmp" "ms")
 zellij_init_cpu_stats=$(print_stats "$zellij_init_cpu_tmp" "ms")
@@ -368,6 +398,11 @@ Metric | Litents | Zellij | Codex app-server | Agent of Empires
 Initialize control surface | $litents_init_rss_stats | $zellij_init_rss_stats | $codex_app_start_rss_stats | $aoe_init_rss_stats
 Start one workload | $litents_new_rss_stats | $zellij_new_rss_stats | N/A | $aoe_start_rss_stats
 Status/list/health poll | $litents_status_rss_stats | $zellij_list_rss_stats | $codex_app_health_rss_stats | $aoe_status_rss_stats
+Dashboard render | $litents_dash_rss_stats | N/A | N/A | N/A
+Peek recent output | $litents_peek_rss_stats | N/A | N/A | N/A
+Discover unmanaged panes | $litents_discover_rss_stats | N/A | N/A | N/A
+Adopt unmanaged pane | $litents_adopt_rss_stats | N/A | N/A | N/A
+Untrack adopted pane | $litents_untrack_rss_stats | N/A | N/A | N/A
 Stop control surface | $litents_stop_rss_stats | $zellij_kill_rss_stats | $codex_app_stop_rss_stats | $aoe_stop_rss_stats
 Cleanup state files | $litents_clean_rss_stats | N/A | N/A | $aoe_remove_rss_stats
 
@@ -378,6 +413,11 @@ Metric | Litents | Zellij | Codex app-server | Agent of Empires
 Initialize control surface | $litents_init_cpu_stats | $zellij_init_cpu_stats | $codex_app_start_cpu_stats | $aoe_init_cpu_stats
 Start one workload | $litents_new_cpu_stats | $zellij_new_cpu_stats | N/A | $aoe_start_cpu_stats
 Status/list/health poll | $litents_status_cpu_stats | $zellij_list_cpu_stats | $codex_app_health_cpu_stats | $aoe_status_cpu_stats
+Dashboard render | $litents_dash_cpu_stats | N/A | N/A | N/A
+Peek recent output | $litents_peek_cpu_stats | N/A | N/A | N/A
+Discover unmanaged panes | $litents_discover_cpu_stats | N/A | N/A | N/A
+Adopt unmanaged pane | $litents_adopt_cpu_stats | N/A | N/A | N/A
+Untrack adopted pane | $litents_untrack_cpu_stats | N/A | N/A | N/A
 Stop control surface | $litents_stop_cpu_stats | $zellij_kill_cpu_stats | $codex_app_stop_cpu_stats | $aoe_stop_cpu_stats
 Cleanup state files | $litents_clean_cpu_stats | N/A | N/A | $aoe_remove_cpu_stats
 
@@ -386,7 +426,7 @@ Cleanup state files | $litents_clean_cpu_stats | N/A | N/A | $aoe_remove_cpu_sta
 Litents has no resident daemon after lifecycle commands exit. These results are best read as command peak memory and CPU cost for orchestrating local agent sessions, not as a full memory census of terminal emulators or desktop apps.
 EOF_REPORT
 
-rm -f "$litents_init_rss_tmp" "$litents_new_rss_tmp" "$litents_status_rss_tmp" "$litents_stop_rss_tmp" "$litents_clean_rss_tmp" "$zellij_init_rss_tmp" "$zellij_new_rss_tmp" "$zellij_list_rss_tmp" "$zellij_kill_rss_tmp" "$codex_app_start_rss_tmp" "$codex_app_health_rss_tmp" "$codex_app_stop_rss_tmp" "$aoe_init_rss_tmp" "$aoe_start_rss_tmp" "$aoe_status_rss_tmp" "$aoe_stop_rss_tmp" "$aoe_remove_rss_tmp"
-rm -f "$litents_init_cpu_tmp" "$litents_new_cpu_tmp" "$litents_status_cpu_tmp" "$litents_stop_cpu_tmp" "$litents_clean_cpu_tmp" "$zellij_init_cpu_tmp" "$zellij_new_cpu_tmp" "$zellij_list_cpu_tmp" "$zellij_kill_cpu_tmp" "$codex_app_start_cpu_tmp" "$codex_app_health_cpu_tmp" "$codex_app_stop_cpu_tmp" "$aoe_init_cpu_tmp" "$aoe_start_cpu_tmp" "$aoe_status_cpu_tmp" "$aoe_stop_cpu_tmp" "$aoe_remove_cpu_tmp"
+rm -f "$litents_init_rss_tmp" "$litents_new_rss_tmp" "$litents_status_rss_tmp" "$litents_dash_rss_tmp" "$litents_peek_rss_tmp" "$litents_discover_rss_tmp" "$litents_adopt_rss_tmp" "$litents_untrack_rss_tmp" "$litents_stop_rss_tmp" "$litents_clean_rss_tmp" "$zellij_init_rss_tmp" "$zellij_new_rss_tmp" "$zellij_list_rss_tmp" "$zellij_kill_rss_tmp" "$codex_app_start_rss_tmp" "$codex_app_health_rss_tmp" "$codex_app_stop_rss_tmp" "$aoe_init_rss_tmp" "$aoe_start_rss_tmp" "$aoe_status_rss_tmp" "$aoe_stop_rss_tmp" "$aoe_remove_rss_tmp"
+rm -f "$litents_init_cpu_tmp" "$litents_new_cpu_tmp" "$litents_status_cpu_tmp" "$litents_dash_cpu_tmp" "$litents_peek_cpu_tmp" "$litents_discover_cpu_tmp" "$litents_adopt_cpu_tmp" "$litents_untrack_cpu_tmp" "$litents_stop_cpu_tmp" "$litents_clean_cpu_tmp" "$zellij_init_cpu_tmp" "$zellij_new_cpu_tmp" "$zellij_list_cpu_tmp" "$zellij_kill_cpu_tmp" "$codex_app_start_cpu_tmp" "$codex_app_health_cpu_tmp" "$codex_app_stop_cpu_tmp" "$aoe_init_cpu_tmp" "$aoe_start_cpu_tmp" "$aoe_status_cpu_tmp" "$aoe_stop_cpu_tmp" "$aoe_remove_cpu_tmp"
 
 printf 'Resource report written to: %s\n' "$RESULT_FILE"

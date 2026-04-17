@@ -84,6 +84,11 @@ print_stats() {
 litents_init_tmp="$(mktemp)"
 litents_new_tmp="$(mktemp)"
 litents_status_tmp="$(mktemp)"
+litents_dash_tmp="$(mktemp)"
+litents_peek_tmp="$(mktemp)"
+litents_discover_tmp="$(mktemp)"
+litents_adopt_tmp="$(mktemp)"
+litents_untrack_tmp="$(mktemp)"
 litents_stop_tmp="$(mktemp)"
 litents_clean_tmp="$(mktemp)"
 zellij_init_tmp="$(mktemp)"
@@ -102,6 +107,11 @@ aoe_remove_tmp="$(mktemp)"
 : >"$litents_init_tmp"
 : >"$litents_new_tmp"
 : >"$litents_status_tmp"
+: >"$litents_dash_tmp"
+: >"$litents_peek_tmp"
+: >"$litents_discover_tmp"
+: >"$litents_adopt_tmp"
+: >"$litents_untrack_tmp"
 : >"$litents_stop_tmp"
 : >"$litents_clean_tmp"
 : >"$zellij_init_tmp"
@@ -171,6 +181,25 @@ EOF_CODEX
   sleep 0.05
   litents_status_ms=$(measure_ms "$run_log" env "${base_env[@]}" "$LITENTS_BIN" status --project "$project_name")
   echo "$litents_status_ms" >> "$litents_status_tmp"
+
+  litents_dash_ms=$(measure_ms "$run_log" env "${base_env[@]}" "$LITENTS_BIN" dash --project "$project_name" --preview "$agent_name" --n 5)
+  echo "$litents_dash_ms" >> "$litents_dash_tmp"
+
+  litents_peek_ms=$(measure_ms "$run_log" env "${base_env[@]}" "$LITENTS_BIN" peek --project "$project_name" --n 5 "$agent_name")
+  echo "$litents_peek_ms" >> "$litents_peek_tmp"
+
+  unmanaged_window="codex-unmanaged-${i}"
+  unmanaged_pane=$(tmux new-window -t "$litents_session" -n "$unmanaged_window" -c "$repo_dir" -P -F "#{pane_id}" "$agent_script")
+
+  litents_discover_ms=$(measure_ms "$run_log" env "${base_env[@]}" "$LITENTS_BIN" discover)
+  echo "$litents_discover_ms" >> "$litents_discover_tmp"
+
+  litents_adopt_ms=$(measure_ms "$run_log" env "${base_env[@]}" "$LITENTS_BIN" adopt "$unmanaged_pane" --project "$project_name" --id "adopted-$i")
+  echo "$litents_adopt_ms" >> "$litents_adopt_tmp"
+
+  litents_untrack_ms=$(measure_ms "$run_log" env "${base_env[@]}" "$LITENTS_BIN" untrack --project "$project_name" "adopted-$i")
+  echo "$litents_untrack_ms" >> "$litents_untrack_tmp"
+  tmux kill-window -t "${litents_session}:${unmanaged_window}" >/dev/null 2>&1 || true
 
   litents_stop_ms=$(measure_ms "$run_log" env "${base_env[@]}" "$LITENTS_BIN" stop --force --project "$project_name" "$agent_name")
   echo "$litents_stop_ms" >> "$litents_stop_tmp"
@@ -273,6 +302,11 @@ done
 litents_init_stats=$(print_stats "$litents_init_tmp")
 litents_new_stats=$(print_stats "$litents_new_tmp")
 litents_status_stats=$(print_stats "$litents_status_tmp")
+litents_dash_stats=$(print_stats "$litents_dash_tmp")
+litents_peek_stats=$(print_stats "$litents_peek_tmp")
+litents_discover_stats=$(print_stats "$litents_discover_tmp")
+litents_adopt_stats=$(print_stats "$litents_adopt_tmp")
+litents_untrack_stats=$(print_stats "$litents_untrack_tmp")
 litents_stop_stats=$(print_stats "$litents_stop_tmp")
 litents_clean_stats=$(print_stats "$litents_clean_tmp")
 zellij_init_stats=$(print_stats "$zellij_init_tmp")
@@ -338,11 +372,15 @@ Metric | Litents | Zellij | Codex app-server | Agent of Empires
 Initialize control surface | $litents_init_stats | $zellij_init_stats | $codex_app_start_stats | $aoe_init_stats
 Start one workload | $litents_new_stats | $zellij_new_stats | N/A | $aoe_start_stats
 Status/list/health poll | $litents_status_stats | $zellij_list_stats | $codex_app_health_stats | $aoe_status_stats
+Dashboard render | $litents_dash_stats | N/A | N/A | N/A
+Peek recent output | $litents_peek_stats | N/A | N/A | N/A
+Discover unmanaged panes | $litents_discover_stats | N/A | N/A | N/A
+Adopt unmanaged pane | $litents_adopt_stats | N/A | N/A | N/A
+Untrack adopted pane | $litents_untrack_stats | N/A | N/A | N/A
 Stop control surface | $litents_stop_stats | $zellij_kill_stats | $codex_app_stop_stats | $aoe_stop_stats
 Cleanup state files | $litents_clean_stats | N/A | N/A | $aoe_remove_stats
-
 EOF_REPORT
 
-rm -f "$litents_init_tmp" "$litents_new_tmp" "$litents_status_tmp" "$litents_stop_tmp" "$litents_clean_tmp" "$zellij_init_tmp" "$zellij_new_tmp" "$zellij_list_tmp" "$zellij_kill_tmp" "$codex_app_start_tmp" "$codex_app_health_tmp" "$codex_app_stop_tmp" "$aoe_init_tmp" "$aoe_start_tmp" "$aoe_status_tmp" "$aoe_stop_tmp" "$aoe_remove_tmp"
+rm -f "$litents_init_tmp" "$litents_new_tmp" "$litents_status_tmp" "$litents_dash_tmp" "$litents_peek_tmp" "$litents_discover_tmp" "$litents_adopt_tmp" "$litents_untrack_tmp" "$litents_stop_tmp" "$litents_clean_tmp" "$zellij_init_tmp" "$zellij_new_tmp" "$zellij_list_tmp" "$zellij_kill_tmp" "$codex_app_start_tmp" "$codex_app_health_tmp" "$codex_app_stop_tmp" "$aoe_init_tmp" "$aoe_start_tmp" "$aoe_status_tmp" "$aoe_stop_tmp" "$aoe_remove_tmp"
 
 printf 'Comparison report written to: %s\n' "$RESULT_FILE"

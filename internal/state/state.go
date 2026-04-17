@@ -31,25 +31,38 @@ type Project struct {
 }
 
 type Agent struct {
-	ID               string    `json:"id"`
-	Project          string    `json:"project"`
-	Role             string    `json:"role"`
-	RepoPath         string    `json:"repo_path"`
-	WorktreePath     string    `json:"worktree_path"`
-	Branch           string    `json:"branch"`
-	TmuxSession      string    `json:"tmux_session"`
-	TmuxWindow       string    `json:"tmux_window"`
-	TmuxPane         string    `json:"tmux_pane"`
-	PromptFile       string    `json:"prompt_file"`
-	LogFile          string    `json:"log_file"`
-	Status           string    `json:"status"`
-	LastStatus       string    `json:"last_status"`
-	LastActivityAt   time.Time `json:"last_activity_at"`
+	ID               string     `json:"id"`
+	Project          string     `json:"project"`
+	Role             string     `json:"role"`
+	Source           string     `json:"source"`
+	RepoPath         string     `json:"repo_path"`
+	WorktreePath     string     `json:"worktree_path"`
+	Branch           string     `json:"branch"`
+	TmuxSession      string     `json:"tmux_session"`
+	TmuxWindow       string     `json:"tmux_window"`
+	TmuxPane         string     `json:"tmux_pane"`
+	CodexSessionID   string     `json:"codex_session_id"`
+	CodexThreadID    string     `json:"codex_thread_id"`
+	Model            string     `json:"model"`
+	ApprovalPolicy   string     `json:"approval_policy"`
+	SandboxMode      string     `json:"sandbox_mode"`
+	PromptFile       string     `json:"prompt_file"`
+	LogFile          string     `json:"log_file"`
+	EventsFile       string     `json:"events_file"`
+	Status           string     `json:"status"`
+	LastStatus       string     `json:"last_status"`
+	AttentionReason  string     `json:"attention_reason"`
+	AttentionExcerpt string     `json:"attention_excerpt"`
+	AttentionSince   *time.Time `json:"attention_since"`
+	LastError        string     `json:"last_error"`
+	ExitCode         *int       `json:"exit_code"`
+	LastActivityAt   time.Time  `json:"last_activity_at"`
 	LastNotifiedAt   *time.Time `json:"last_notified_at"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
-	RunnerScriptFile string    `json:"runner_script"`
-	SummaryFile      string    `json:"summary_file"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	ArchivedAt       *time.Time `json:"archived_at"`
+	RunnerScriptFile string     `json:"runner_script"`
+	SummaryFile      string     `json:"summary_file"`
 }
 
 var agentIDRegex = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
@@ -279,7 +292,7 @@ func ResolveAgentAcrossProjects(stateRoot, project, agentID string) (Project, Ag
 		}
 		found = append(found, struct {
 			project Project
-			agent Agent
+			agent   Agent
 		}{p, a})
 	}
 

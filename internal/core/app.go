@@ -25,19 +25,19 @@ type App struct {
 }
 
 type Config struct {
-	TmuxSessionPrefix      string   `json:"tmux_session_prefix"`
-	WorktreeRoot           string   `json:"worktree_root"`
-	DefaultBaseBranch      string   `json:"default_base_branch"`
-	CodexCommand           string   `json:"codex_command"`
-	CodexArgs              []string `json:"codex_args"`
-	NotifyEnabled          bool     `json:"notify_enabled"`
-	NotifyCommand          string   `json:"notify_command"`
-	WatchIntervalSeconds   int      `json:"watch_interval_seconds"`
-	SilenceThresholdSeconds int     `json:"silence_threshold_seconds"`
-	ActivityNotifyCooldown int     `json:"activity_notify_cooldown_seconds"`
-	WaitingRegexes         []string `json:"waiting_regexes"`
-	DoneRegexes            []string `json:"done_regexes"`
-	NotifyOnQuiet          bool     `json:"notify_on_quiet"`
+	TmuxSessionPrefix       string   `json:"tmux_session_prefix"`
+	WorktreeRoot            string   `json:"worktree_root"`
+	DefaultBaseBranch       string   `json:"default_base_branch"`
+	CodexCommand            string   `json:"codex_command"`
+	CodexArgs               []string `json:"codex_args"`
+	NotifyEnabled           bool     `json:"notify_enabled"`
+	NotifyCommand           string   `json:"notify_command"`
+	WatchIntervalSeconds    int      `json:"watch_interval_seconds"`
+	SilenceThresholdSeconds int      `json:"silence_threshold_seconds"`
+	ActivityNotifyCooldown  int      `json:"activity_notify_cooldown_seconds"`
+	WaitingRegexes          []string `json:"waiting_regexes"`
+	DoneRegexes             []string `json:"done_regexes"`
+	NotifyOnQuiet           bool     `json:"notify_on_quiet"`
 }
 
 type Project struct {
@@ -48,23 +48,45 @@ type Project struct {
 }
 
 type Agent struct {
-	ID             string     `json:"id"`
-	Project        string     `json:"project"`
-	Role           string     `json:"role"`
-	RepoPath       string     `json:"repo_path"`
-	WorktreePath   string     `json:"worktree_path"`
-	Branch         string     `json:"branch"`
-	TmuxSession    string     `json:"tmux_session"`
-	TmuxWindow     string     `json:"tmux_window"`
-	TmuxPane       string     `json:"tmux_pane"`
-	PromptFile     string     `json:"prompt_file"`
-	LogFile        string     `json:"log_file"`
-	Status         string     `json:"status"`
-	LastStatus     string     `json:"last_status"`
-	LastActivityAt time.Time  `json:"last_activity_at"`
-	LastNotifiedAt *time.Time `json:"last_notified_at"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	ID               string     `json:"id"`
+	Project          string     `json:"project"`
+	Role             string     `json:"role"`
+	Source           string     `json:"source"`
+	RepoPath         string     `json:"repo_path"`
+	WorktreePath     string     `json:"worktree_path"`
+	Branch           string     `json:"branch"`
+	TmuxSession      string     `json:"tmux_session"`
+	TmuxWindow       string     `json:"tmux_window"`
+	TmuxPane         string     `json:"tmux_pane"`
+	CodexSessionID   string     `json:"codex_session_id"`
+	CodexThreadID    string     `json:"codex_thread_id"`
+	Model            string     `json:"model"`
+	ApprovalPolicy   string     `json:"approval_policy"`
+	SandboxMode      string     `json:"sandbox_mode"`
+	PromptFile       string     `json:"prompt_file"`
+	LogFile          string     `json:"log_file"`
+	EventsFile       string     `json:"events_file"`
+	Status           string     `json:"status"`
+	LastStatus       string     `json:"last_status"`
+	AttentionReason  string     `json:"attention_reason"`
+	AttentionExcerpt string     `json:"attention_excerpt"`
+	AttentionSince   *time.Time `json:"attention_since"`
+	LastError        string     `json:"last_error"`
+	ExitCode         *int       `json:"exit_code"`
+	LastActivityAt   time.Time  `json:"last_activity_at"`
+	LastNotifiedAt   *time.Time `json:"last_notified_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	ArchivedAt       *time.Time `json:"archived_at"`
+}
+
+type AgentEvent struct {
+	Time             time.Time `json:"time"`
+	Type             string    `json:"type"`
+	Status           string    `json:"status,omitempty"`
+	AttentionReason  string    `json:"attention_reason,omitempty"`
+	AttentionExcerpt string    `json:"attention_excerpt,omitempty"`
+	Message          string    `json:"message,omitempty"`
 }
 
 const (
@@ -75,6 +97,9 @@ const (
 	statusDone     = "done"
 	statusFailed   = "failed"
 	statusUnknown  = "unknown"
+
+	sourceLaunched = "launched"
+	sourceAdopted  = "adopted"
 )
 
 var agentIDRegex = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
@@ -104,16 +129,16 @@ func NewApp(out, errOut io.Writer) *App {
 func loadConfigWithDefaults() Config {
 	home, _ := os.UserHomeDir()
 	return Config{
-		TmuxSessionPrefix:      "litents",
-		WorktreeRoot:           filepath.Join(home, ".local", "share", "litents", "worktrees"),
-		DefaultBaseBranch:      "main",
-		CodexCommand:           "codex",
-		CodexArgs:              []string{},
-		NotifyEnabled:          true,
-		NotifyCommand:          "auto",
-		WatchIntervalSeconds:   3,
+		TmuxSessionPrefix:       "litents",
+		WorktreeRoot:            filepath.Join(home, ".local", "share", "litents", "worktrees"),
+		DefaultBaseBranch:       "main",
+		CodexCommand:            "codex",
+		CodexArgs:               []string{},
+		NotifyEnabled:           true,
+		NotifyCommand:           "auto",
+		WatchIntervalSeconds:    3,
 		SilenceThresholdSeconds: 180,
-		ActivityNotifyCooldown: 120,
+		ActivityNotifyCooldown:  120,
 		WaitingRegexes: []string{
 			"(?i)approval",
 			"(?i)allow.*command",
@@ -133,16 +158,18 @@ func loadConfigWithDefaults() Config {
 			"(?i)done",
 			"(?i)finished",
 		},
-		NotifyOnQuiet:          false,
+		NotifyOnQuiet: false,
 	}
 }
 
 func (a *App) Run(args []string) error {
 	if len(args) == 0 {
-		return a.printUsage()
+		return a.handleDash(nil)
 	}
 
 	switch args[0] {
+	case "dash":
+		return a.handleDash(args[1:])
 	case "doctor":
 		return a.handleDoctor(args[1:])
 	case "init":
@@ -165,6 +192,14 @@ func (a *App) Run(args []string) error {
 		return a.handleResume(args[1:])
 	case "history":
 		return a.handleHistory(args[1:])
+	case "discover":
+		return a.handleDiscover(args[1:])
+	case "adopt":
+		return a.handleAdopt(args[1:])
+	case "untrack":
+		return a.handleUntrack(args[1:])
+	case "peek":
+		return a.handlePeek(args[1:])
 	case "stop":
 		return a.handleStop(args[1:])
 	case "clean":
@@ -180,6 +215,7 @@ func (a *App) printUsage() error {
 	usage := `litents [command]
 
 Core commands:
+  dash                      Open the lightweight session dashboard
   doctor                    Check dependencies and directories
   init [repo]               Initialize a project for a repo
   new <agent-id>            Create a new agent
@@ -187,10 +223,14 @@ Core commands:
   attach <agent-id>         Attach to an agent window
   send <agent-id> <text>    Send text to agent
   tail <agent-id>           Print agent log
+  peek <agent-id>           Preview recent output
   notify test               Test notification command
   watch                     Poll and print agent status
   resume <agent-id>         Resume an agent pane from worktree
   history                   Show past agents
+  discover                  Find unmanaged Codex-like tmux panes
+  adopt <pane-id>           Track an existing tmux pane
+  untrack <agent-id>        Remove tracking without killing pane
   stop <agent-id>           Stop an agent
   clean                     Remove dead agent state and optional worktrees
 `
@@ -237,7 +277,11 @@ func (a *App) handleInit(args []string) error {
 	session := fs.String("session", "", "tmux session name")
 	noWatch := fs.Bool("no-watch", false, "skip watch window")
 	worktreeRoot := fs.String("worktree-root", "", "override configured worktree root")
-	if err := fs.Parse(args); err != nil {
+	if err := fs.Parse(reorderTrailingFlags(args, map[string]bool{
+		"project": true,
+		"id":      true,
+		"repo":    true,
+	})); err != nil {
 		return err
 	}
 
@@ -305,7 +349,7 @@ func (a *App) handleNew(args []string) error {
 	profile := fs.String("profile", "", "codex profile")
 	var codexArgs stringSliceFlag
 	fs.Var(&codexArgs, "codex-arg", "repeatable codex args")
-	if err := fs.Parse(args); err != nil {
+	if err := fs.Parse(reorderTrailingFlags(args, map[string]bool{"project": true})); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
@@ -341,11 +385,11 @@ func (a *App) handleNew(args []string) error {
 		if err := ensureDir(filepath.Dir(worktreePath)); err != nil {
 			return err
 		}
-	if _, statErr := os.Stat(worktreePath); os.IsNotExist(statErr) {
-		if err := runCommand(a.ErrOut, "git", "-C", project.RepoPath, "worktree", "add", "-B", agentBranch, worktreePath, b); err != nil {
-			return fmt.Errorf("git worktree add failed: %w", err)
+		if _, statErr := os.Stat(worktreePath); os.IsNotExist(statErr) {
+			if err := runCommand(a.ErrOut, "git", "-C", project.RepoPath, "worktree", "add", "-B", agentBranch, worktreePath, b); err != nil {
+				return fmt.Errorf("git worktree add failed: %w", err)
+			}
 		}
-	}
 	}
 
 	window := agentID
@@ -357,25 +401,28 @@ func (a *App) handleNew(args []string) error {
 	}
 	now := a.Now().UTC()
 	agent := &Agent{
-		ID:           agentID,
-		Project:      project.Name,
-		Role:         "",
-		RepoPath:     project.RepoPath,
-		WorktreePath: worktreePath,
-		Branch:       agentBranch,
-		TmuxSession:  project.TmuxSession,
-		TmuxWindow:   window,
-		PromptFile:   a.agentPromptPath(project.Name, agentID),
-		LogFile:      a.agentLogPath(project.Name, agentID),
-		Status:       statusStarting,
-		LastStatus:   statusStarting,
+		ID:             agentID,
+		Project:        project.Name,
+		Role:           "",
+		Source:         sourceLaunched,
+		RepoPath:       project.RepoPath,
+		WorktreePath:   worktreePath,
+		Branch:         agentBranch,
+		TmuxSession:    project.TmuxSession,
+		TmuxWindow:     window,
+		PromptFile:     a.agentPromptPath(project.Name, agentID),
+		LogFile:        a.agentLogPath(project.Name, agentID),
+		EventsFile:     a.agentEventsPath(project.Name, agentID),
+		Status:         statusStarting,
+		LastStatus:     statusStarting,
 		LastActivityAt: now,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}
 	if err := a.writeAgent(agent); err != nil {
 		return err
 	}
+	_ = a.appendAgentEvent(agent, "created", "created launched session metadata")
 	if err := ensureDir(filepath.Dir(agent.PromptFile)); err != nil {
 		return err
 	}
@@ -406,6 +453,7 @@ func (a *App) handleNew(args []string) error {
 	if err := a.writeAgent(agent); err != nil {
 		return err
 	}
+	_ = a.appendAgentEvent(agent, "started", "tmux pane started")
 	_, err = io.WriteString(a.Out, "✓ created agent "+agentID+"\n")
 	return err
 }
@@ -415,7 +463,10 @@ func (a *App) handleStatus(args []string) error {
 	fs.SetOutput(a.ErrOut)
 	projectName := fs.String("project", "", "project name")
 	watch := fs.Bool("watch", false, "watch mode")
-	if err := fs.Parse(args); err != nil {
+	if err := fs.Parse(reorderTrailingFlags(args, map[string]bool{
+		"project": true,
+		"n":       true,
+	})); err != nil {
 		return err
 	}
 
@@ -431,7 +482,13 @@ func (a *App) handleStatus(args []string) error {
 		}
 		updated := make([]*Agent, 0, len(agents))
 		for _, agent := range agents {
-			updated = append(updated, a.refreshAgentStatus(agent))
+			beforeStatus := agent.Status
+			beforeReason := agent.AttentionReason
+			refreshed := a.refreshAgentStatus(agent)
+			if err := a.persistAgentRefresh(refreshed, beforeStatus, beforeReason); err != nil {
+				return err
+			}
+			updated = append(updated, refreshed)
 		}
 		a.printStatusRows(updated)
 		if !*watch {
@@ -445,7 +502,11 @@ func (a *App) handleAttach(args []string) error {
 	fs := flag.NewFlagSet("attach", flag.ContinueOnError)
 	fs.SetOutput(a.ErrOut)
 	projectName := fs.String("project", "", "project name")
-	if err := fs.Parse(args); err != nil {
+	if err := fs.Parse(reorderTrailingFlags(args, map[string]bool{
+		"project": true,
+		"id":      true,
+		"repo":    true,
+	})); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
@@ -479,7 +540,7 @@ func (a *App) handleSend(args []string) error {
 	projectName := fs.String("project", "", "project name")
 	enterOnly := fs.Bool("enter-only", false, "send only Enter")
 	noEnter := fs.Bool("no-enter", false, "skip Enter")
-	if err := fs.Parse(args); err != nil {
+	if err := fs.Parse(reorderTrailingFlags(args, map[string]bool{"project": true})); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 || fs.NArg() > 2 {
@@ -510,9 +571,11 @@ func (a *App) handleSend(args []string) error {
 	}
 	agent.LastActivityAt = a.Now().UTC()
 	agent.UpdatedAt = a.Now().UTC()
+	clearAttention(agent)
 	if err := a.writeAgent(agent); err != nil {
 		return err
 	}
+	_ = a.appendAgentEvent(agent, "sent", "sent input to pane")
 	_, err = io.WriteString(a.Out, "✓ sent\n")
 	return err
 }
@@ -523,7 +586,10 @@ func (a *App) handleTail(args []string) error {
 	projectName := fs.String("project", "", "project name")
 	lines := fs.Int("n", 80, "number of lines")
 	follow := fs.Bool("follow", false, "follow output")
-	if err := fs.Parse(args); err != nil {
+	if err := fs.Parse(reorderTrailingFlags(args, map[string]bool{
+		"project": true,
+		"n":       true,
+	})); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
@@ -579,8 +645,9 @@ func (a *App) handleWatch(args []string) error {
 		changed := make([]*Agent, 0, len(agents))
 		for _, agent := range agents {
 			before := agent.Status
+			beforeReason := agent.AttentionReason
 			updated := a.refreshAgentStatus(agent)
-			if err := a.writeAgent(updated); err != nil {
+			if err := a.persistAgentRefresh(updated, before, beforeReason); err != nil {
 				return err
 			}
 			if before != updated.Status {
@@ -593,7 +660,7 @@ func (a *App) handleWatch(args []string) error {
 					now := a.Now().UTC()
 					last, ok := lastNotified[agentStatusKey(agent.Project, agent.ID)]
 					if !ok || now.Sub(last).Seconds() >= float64(a.Config.ActivityNotifyCooldown) {
-						_ = a.sendNotification(updated.Project, updated.ID, updated.Status, "status changed")
+						_ = a.sendNotification(updated.Project, updated.ID, updated.Status, notificationMessage(updated))
 						lastNotified[agentStatusKey(agent.Project, agent.ID)] = now
 					}
 				}
@@ -648,10 +715,12 @@ func (a *App) handleResume(args []string) error {
 	}
 	agent.TmuxPane = strings.TrimSpace(out)
 	agent.Status = statusStarting
+	clearAttention(agent)
 	agent.UpdatedAt = a.Now().UTC()
 	if err := a.writeAgent(agent); err != nil {
 		return err
 	}
+	_ = a.appendAgentEvent(agent, "resumed", "created new tmux pane for resume")
 	_, err = io.WriteString(a.Out, "✓ resumed "+agent.ID+"\n")
 	return err
 }
@@ -685,6 +754,291 @@ func (a *App) handleHistory(args []string) error {
 	return nil
 }
 
+func (a *App) handleDiscover(args []string) error {
+	fs := flag.NewFlagSet("discover", flag.ContinueOnError)
+	fs.SetOutput(a.ErrOut)
+	all := fs.Bool("all", false, "show non-Codex panes too")
+	jsonOut := fs.Bool("json", false, "print JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	panes, err := tmuxDiscoverPanes()
+	if err != nil {
+		return err
+	}
+	tracked := a.trackedPaneSet()
+	discovered := []tmuxPaneInfo{}
+	for _, pane := range panes {
+		_, isTracked := tracked[pane.PaneID]
+		pane.Tracked = isTracked
+		if !*all && (isTracked || !pane.LooksLikeCodex()) {
+			continue
+		}
+		discovered = append(discovered, pane)
+	}
+	if *jsonOut {
+		enc := json.NewEncoder(a.Out)
+		enc.SetIndent("", "  ")
+		return enc.Encode(discovered)
+	}
+	_, _ = io.WriteString(a.Out, "SESSION\tWINDOW\tPANE\tCOMMAND\tCWD\tTRACKED\tSIGNAL\n")
+	for _, pane := range discovered {
+		signal := "candidate"
+		if !pane.LooksLikeCodex() {
+			signal = "other"
+		}
+		trackedText := "no"
+		if pane.Tracked {
+			trackedText = "yes"
+		}
+		_, _ = io.WriteString(a.Out, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n", pane.Session, pane.Window, pane.PaneID, pane.Command, pane.CurrentPath, trackedText, signal))
+	}
+	return nil
+}
+
+func (a *App) handleAdopt(args []string) error {
+	fs := flag.NewFlagSet("adopt", flag.ContinueOnError)
+	fs.SetOutput(a.ErrOut)
+	projectName := fs.String("project", "", "project name")
+	agentID := fs.String("id", "", "agent id")
+	repoArg := fs.String("repo", "", "repo root path")
+	args = reorderTrailingFlags(args, map[string]bool{
+		"project": true,
+		"id":      true,
+		"repo":    true,
+	})
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("usage: litents adopt <pane-id> [--id agent-id] [--project name] [--repo path]")
+	}
+	paneID := fs.Arg(0)
+	panes, err := tmuxDiscoverPanes()
+	if err != nil {
+		return err
+	}
+	var pane *tmuxPaneInfo
+	for i := range panes {
+		if panes[i].PaneID == paneID {
+			pane = &panes[i]
+			break
+		}
+	}
+	if pane == nil {
+		return fmt.Errorf("pane not found: %s", paneID)
+	}
+	if _, ok := a.trackedPaneSet()[paneID]; ok {
+		return fmt.Errorf("pane already tracked: %s", paneID)
+	}
+	repoPath := strings.TrimSpace(*repoArg)
+	if repoPath != "" {
+		repoPath, err = resolveRepoRoot(repoPath)
+		if err != nil {
+			return err
+		}
+	} else if strings.TrimSpace(pane.CurrentPath) != "" {
+		if resolved, err := resolveRepoRoot(pane.CurrentPath); err == nil {
+			repoPath = resolved
+		} else {
+			repoPath = filepath.Clean(pane.CurrentPath)
+		}
+	}
+	if repoPath == "" {
+		return errors.New("could not infer repo path; pass --repo")
+	}
+	name := strings.TrimSpace(*projectName)
+	if name == "" {
+		name = filepath.Base(repoPath)
+	}
+	project := &Project{
+		Name:        name,
+		RepoPath:    repoPath,
+		TmuxSession: pane.Session,
+		CreatedAt:   a.Now().UTC(),
+	}
+	if existing, err := a.loadProject(name); err == nil {
+		project = existing
+		if project.TmuxSession == "" {
+			project.TmuxSession = pane.Session
+		}
+		if err := a.writeProject(project); err != nil {
+			return err
+		}
+	} else if err := a.writeProject(project); err != nil {
+		return err
+	}
+	id := strings.TrimSpace(*agentID)
+	if id == "" {
+		id = sanitizeAgentID(pane.Window)
+		if id == "" {
+			id = "adopted-" + strings.TrimPrefix(strings.TrimSpace(pane.PaneID), "%")
+		}
+	}
+	if !agentIDRegex.MatchString(id) {
+		return fmt.Errorf("agent id must match %s", agentIDRegex.String())
+	}
+	if _, err := a.findAgent(project.Name, id); err == nil {
+		return fmt.Errorf("agent already exists: %s", id)
+	}
+	worktreePath := filepath.Clean(pane.CurrentPath)
+	if strings.TrimSpace(pane.CurrentPath) == "" {
+		worktreePath = repoPath
+	}
+	now := a.Now().UTC()
+	agent := &Agent{
+		ID:               id,
+		Project:          project.Name,
+		Source:           sourceAdopted,
+		RepoPath:         project.RepoPath,
+		WorktreePath:     worktreePath,
+		Branch:           gitCurrentBranch(worktreePath),
+		TmuxSession:      pane.Session,
+		TmuxWindow:       pane.Window,
+		TmuxPane:         pane.PaneID,
+		PromptFile:       a.agentPromptPath(project.Name, id),
+		LogFile:          a.agentLogPath(project.Name, id),
+		EventsFile:       a.agentEventsPath(project.Name, id),
+		Status:           statusRunning,
+		LastStatus:       statusRunning,
+		AttentionReason:  "untracked",
+		AttentionExcerpt: "adopted existing tmux pane",
+		AttentionSince:   &now,
+		LastActivityAt:   now,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+	if err := ensureDir(filepath.Dir(agent.PromptFile)); err != nil {
+		return err
+	}
+	if err := os.WriteFile(agent.PromptFile, []byte("Adopted existing tmux pane "+pane.PaneID+"\n"), 0o644); err != nil {
+		return err
+	}
+	if err := ensureDir(filepath.Dir(agent.LogFile)); err != nil {
+		return err
+	}
+	_ = runCommand(a.ErrOut, "tmux", "pipe-pane", "-o", "-t", pane.PaneID, fmt.Sprintf("cat >> %q", agent.LogFile))
+	if err := a.writeAgent(agent); err != nil {
+		return err
+	}
+	_ = a.appendAgentEvent(agent, "adopted", "adopted existing tmux pane")
+	_, err = io.WriteString(a.Out, "✓ adopted "+pane.PaneID+" as "+agent.ID+"\n")
+	return err
+}
+
+func (a *App) handleUntrack(args []string) error {
+	fs := flag.NewFlagSet("untrack", flag.ContinueOnError)
+	fs.SetOutput(a.ErrOut)
+	projectName := fs.String("project", "", "project name")
+	args = reorderTrailingFlags(args, map[string]bool{"project": true})
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("usage: litents untrack <agent-id> [--project name]")
+	}
+	agent, err := a.findAgent(*projectName, fs.Arg(0))
+	if err != nil {
+		return err
+	}
+	_ = a.appendAgentEvent(agent, "untracked", "removed Litents tracking without killing pane")
+	if err := os.RemoveAll(a.agentDir(agent.Project, agent.ID)); err != nil {
+		return err
+	}
+	_, err = io.WriteString(a.Out, "✓ untracked "+agent.ID+" (pane left running)\n")
+	return err
+}
+
+func (a *App) handlePeek(args []string) error {
+	fs := flag.NewFlagSet("peek", flag.ContinueOnError)
+	fs.SetOutput(a.ErrOut)
+	projectName := fs.String("project", "", "project name")
+	lines := fs.Int("n", 40, "number of lines")
+	args = reorderTrailingFlags(args, map[string]bool{
+		"project": true,
+		"n":       true,
+	})
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("usage: litents peek <agent-id> [--n N] [--project name]")
+	}
+	agent, err := a.findAgent(*projectName, fs.Arg(0))
+	if err != nil {
+		return err
+	}
+	return a.writeAgentPreview(agent, *lines)
+}
+
+func (a *App) handleDash(args []string) error {
+	fs := flag.NewFlagSet("dash", flag.ContinueOnError)
+	fs.SetOutput(a.ErrOut)
+	projectName := fs.String("project", "", "project name")
+	filter := fs.String("filter", "all", "all, attention, running, waiting, quiet, done, archived, unmanaged")
+	attentionOnly := fs.Bool("attention", false, "show only sessions needing attention")
+	previewID := fs.String("preview", "", "agent id to preview")
+	lines := fs.Int("n", 30, "preview lines")
+	discover := fs.Bool("discover", true, "include unmanaged discovered panes")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *attentionOnly {
+		*filter = "attention"
+	}
+	agents, err := a.loadAgentsByProject(*projectName)
+	if err != nil {
+		return err
+	}
+	filtered := make([]*Agent, 0, len(agents))
+	for _, agent := range agents {
+		beforeStatus := agent.Status
+		beforeReason := agent.AttentionReason
+		refreshed := a.refreshAgentStatus(agent)
+		if err := a.persistAgentRefresh(refreshed, beforeStatus, beforeReason); err != nil {
+			return err
+		}
+		if dashboardMatchesFilter(refreshed, *filter) {
+			filtered = append(filtered, refreshed)
+		}
+	}
+	_, _ = io.WriteString(a.Out, "Litents dashboard\n")
+	_, _ = io.WriteString(a.Out, "Commands: litents attach <agent> | litents send <agent> <text> | litents resume <agent> | litents adopt <pane> | litents discover\n\n")
+	a.printStatusRows(filtered)
+	if *discover && (*filter == "all" || *filter == "unmanaged") {
+		panes, _ := tmuxDiscoverPanes()
+		tracked := a.trackedPaneSet()
+		unmanaged := []tmuxPaneInfo{}
+		for _, pane := range panes {
+			if _, ok := tracked[pane.PaneID]; ok || !pane.LooksLikeCodex() {
+				continue
+			}
+			unmanaged = append(unmanaged, pane)
+		}
+		if len(unmanaged) > 0 {
+			_, _ = io.WriteString(a.Out, "\nUnmanaged Codex-like panes\n")
+			_, _ = io.WriteString(a.Out, "SESSION\tWINDOW\tPANE\tCOMMAND\tCWD\n")
+			for _, pane := range unmanaged {
+				_, _ = io.WriteString(a.Out, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\n", pane.Session, pane.Window, pane.PaneID, pane.Command, pane.CurrentPath))
+			}
+		}
+	}
+	preview := strings.TrimSpace(*previewID)
+	if preview == "" && len(filtered) > 0 {
+		preview = filtered[0].ID
+	}
+	if preview != "" {
+		if agent, err := a.findAgent(*projectName, preview); err == nil {
+			_, _ = io.WriteString(a.Out, "\nPreview: "+agent.Project+"/"+agent.ID+"\n")
+			if agent.AttentionReason != "" {
+				_, _ = io.WriteString(a.Out, "Attention: "+agent.AttentionReason+" — "+agent.AttentionExcerpt+"\n")
+			}
+			_ = a.writeAgentPreview(agent, *lines)
+		}
+	}
+	return nil
+}
+
 func (a *App) handleStop(args []string) error {
 	fs := flag.NewFlagSet("stop", flag.ContinueOnError)
 	fs.SetOutput(a.ErrOut)
@@ -714,10 +1068,15 @@ func (a *App) handleStop(args []string) error {
 		}
 	}
 	agent.Status = statusDone
+	agent.AttentionReason = "done"
+	agent.AttentionExcerpt = "stopped by operator"
+	now := a.Now().UTC()
+	agent.AttentionSince = &now
 	agent.UpdatedAt = a.Now().UTC()
 	if err := a.writeAgent(agent); err != nil {
 		return err
 	}
+	_ = a.appendAgentEvent(agent, "stopped", "stopped by operator")
 	_, err = io.WriteString(a.Out, "✓ stopped "+agent.ID+"\n")
 	return err
 }
@@ -808,14 +1167,26 @@ func (a *App) printStatusRows(agents []*Agent) {
 		}
 		return agents[i].Project < agents[j].Project
 	})
-	_, _ = io.WriteString(a.Out, "PROJECT\tAGENT\tSTATUS\tAGE\tLAST ACTIVITY\tWORKTREE\n")
+	_, _ = io.WriteString(a.Out, "PROJECT\tAGENT\tSTATUS\tATTENTION\tSOURCE\tAGE\tLAST ACTIVITY\tBRANCH\tWORKTREE\n")
 	for _, agent := range agents {
 		age := formatDuration(a.Now().UTC().Sub(agent.CreatedAt))
 		lastActivity := "n/a"
 		if !agent.LastActivityAt.IsZero() {
 			lastActivity = formatDuration(a.Now().UTC().Sub(agent.LastActivityAt)) + " ago"
 		}
-		_, _ = io.WriteString(a.Out, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\n", agent.Project, agent.ID, agent.Status, age, lastActivity, agent.WorktreePath))
+		attention := agent.AttentionReason
+		if attention == "" {
+			attention = "-"
+		}
+		source := agent.Source
+		if source == "" {
+			source = sourceLaunched
+		}
+		branch := agent.Branch
+		if branch == "" {
+			branch = "-"
+		}
+		_, _ = io.WriteString(a.Out, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", agent.Project, agent.ID, agent.Status, attention, source, age, lastActivity, branch, agent.WorktreePath))
 	}
 }
 
@@ -888,20 +1259,52 @@ func (a *App) refreshAgentStatus(agent *Agent) *Agent {
 	logTail := readFileTailSafe(agent.LogFile, 40)
 	paneAlive, err := tmuxHasPane(agent.TmuxPane, target)
 	if err == nil && paneAlive {
-		if a.matchesAny(logTail, a.Config.WaitingRegexes) {
+		if matched, excerpt := a.matchesAnyWithExcerpt(logTail, a.Config.WaitingRegexes); matched {
 			agent.Status = statusWaiting
+			agent.AttentionReason = attentionReasonForExcerpt(excerpt)
+			agent.AttentionExcerpt = excerpt
+			if agent.AttentionSince == nil {
+				now := a.Now().UTC()
+				agent.AttentionSince = &now
+			}
 		} else if a.Config.SilenceThresholdSeconds > 0 && a.isQuiet(agent.LastActivityAt, agent.LogFile) {
 			agent.Status = statusQuiet
+			agent.AttentionReason = "stalled"
+			agent.AttentionExcerpt = fmt.Sprintf("quiet for more than %ds", a.Config.SilenceThresholdSeconds)
+			if agent.AttentionSince == nil {
+				now := a.Now().UTC()
+				agent.AttentionSince = &now
+			}
 		} else {
 			agent.Status = statusRunning
+			clearAttention(agent)
 		}
 	} else {
 		if matchExitStatus(logTail, statusFailed, statusDone) == statusFailed {
 			agent.Status = statusFailed
+			agent.AttentionReason = "error"
+			agent.AttentionExcerpt = lastNonEmptyLine(logTail)
+			agent.LastError = agent.AttentionExcerpt
+			if agent.AttentionSince == nil {
+				now := a.Now().UTC()
+				agent.AttentionSince = &now
+			}
 		} else if matchDoneLog(logTail, a.Config.DoneRegexes) {
 			agent.Status = statusDone
+			agent.AttentionReason = "done"
+			agent.AttentionExcerpt = lastNonEmptyLine(logTail)
+			if agent.AttentionSince == nil {
+				now := a.Now().UTC()
+				agent.AttentionSince = &now
+			}
 		} else if agent.Status == statusStarting || agent.Status == statusRunning || agent.Status == statusWaiting || agent.Status == statusQuiet {
 			agent.Status = statusDone
+			agent.AttentionReason = "done"
+			agent.AttentionExcerpt = "pane exited"
+			if agent.AttentionSince == nil {
+				now := a.Now().UTC()
+				agent.AttentionSince = &now
+			}
 		}
 	}
 	logInfo, err := os.Stat(agent.LogFile)
@@ -915,7 +1318,29 @@ func (a *App) refreshAgentStatus(agent *Agent) *Agent {
 	return agent
 }
 
+func (a *App) persistAgentRefresh(agent *Agent, beforeStatus, beforeReason string) error {
+	if err := a.writeAgent(agent); err != nil {
+		return err
+	}
+	if beforeStatus != agent.Status || beforeReason != agent.AttentionReason {
+		return a.appendAgentEvent(agent, "status", notificationMessage(agent))
+	}
+	return nil
+}
+
 func (a *App) writeAgent(agent *Agent) error {
+	if strings.TrimSpace(agent.Source) == "" {
+		agent.Source = sourceLaunched
+	}
+	if strings.TrimSpace(agent.EventsFile) == "" {
+		agent.EventsFile = a.agentEventsPath(agent.Project, agent.ID)
+	}
+	if strings.TrimSpace(agent.PromptFile) == "" {
+		agent.PromptFile = a.agentPromptPath(agent.Project, agent.ID)
+	}
+	if strings.TrimSpace(agent.LogFile) == "" {
+		agent.LogFile = a.agentLogPath(agent.Project, agent.ID)
+	}
 	return writeJSON(a.agentPath(agent.Project, agent.ID), agent)
 }
 
@@ -931,6 +1356,10 @@ func (a *App) agentLogPath(project, id string) string {
 	return filepath.Join(a.projectAgentsBase(project), id, "output.log")
 }
 
+func (a *App) agentEventsPath(project, id string) string {
+	return filepath.Join(a.projectAgentsBase(project), id, "events.jsonl")
+}
+
 func (a *App) agentRunnerPath(project, id string) string {
 	return filepath.Join(a.projectAgentsBase(project), id, "runner.sh")
 }
@@ -941,6 +1370,72 @@ func (a *App) agentDir(project, id string) string {
 
 func (a *App) projectAgentsBase(project string) string {
 	return filepath.Join(a.projectsRoot(), project, "agents")
+}
+
+func (a *App) appendAgentEvent(agent *Agent, eventType, message string) error {
+	path := agent.EventsFile
+	if strings.TrimSpace(path) == "" {
+		path = a.agentEventsPath(agent.Project, agent.ID)
+	}
+	if err := ensureDir(filepath.Dir(path)); err != nil {
+		return err
+	}
+	event := AgentEvent{
+		Time:             a.Now().UTC(),
+		Type:             eventType,
+		Status:           agent.Status,
+		AttentionReason:  agent.AttentionReason,
+		AttentionExcerpt: agent.AttentionExcerpt,
+		Message:          message,
+	}
+	data, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if _, err := f.Write(append(data, '\n')); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *App) trackedPaneSet() map[string]*Agent {
+	agents, err := a.loadAgentsByProject("")
+	if err != nil {
+		return map[string]*Agent{}
+	}
+	tracked := make(map[string]*Agent, len(agents))
+	for _, agent := range agents {
+		if strings.TrimSpace(agent.TmuxPane) != "" {
+			tracked[agent.TmuxPane] = agent
+		}
+	}
+	return tracked
+}
+
+func (a *App) writeAgentPreview(agent *Agent, lines int) error {
+	if lines <= 0 {
+		lines = 40
+	}
+	if text, err := tailLines(agent.LogFile, lines); err == nil && len(text) > 0 {
+		for _, line := range text {
+			_, _ = io.WriteString(a.Out, line+"\n")
+		}
+		return nil
+	}
+	target := fmt.Sprintf("%s:%s", agent.TmuxSession, agent.TmuxWindow)
+	captured, err := tmuxCapturePane(target, lines)
+	if err != nil {
+		return fmt.Errorf("preview unavailable for %s: %w", agent.ID, err)
+	}
+	if strings.TrimSpace(captured) != "" {
+		_, _ = io.WriteString(a.Out, captured+"\n")
+	}
+	return nil
 }
 
 func (a *App) projectsRoot() string {
@@ -1186,6 +1681,70 @@ func tmuxHasPane(paneID, target string) (bool, error) {
 	return false, nil
 }
 
+type tmuxPaneInfo struct {
+	Session     string `json:"session"`
+	Window      string `json:"window"`
+	PaneID      string `json:"pane_id"`
+	Command     string `json:"command"`
+	CurrentPath string `json:"current_path"`
+	Title       string `json:"title"`
+	Dead        string `json:"dead"`
+	Tracked     bool   `json:"tracked"`
+}
+
+func (p tmuxPaneInfo) LooksLikeCodex() bool {
+	haystack := strings.ToLower(strings.Join([]string{p.Command, p.Window, p.Session, p.Title}, " "))
+	return strings.Contains(haystack, "codex")
+}
+
+func tmuxDiscoverPanes() ([]tmuxPaneInfo, error) {
+	format := strings.Join([]string{
+		"#{session_name}",
+		"#{window_name}",
+		"#{pane_id}",
+		"#{pane_current_command}",
+		"#{pane_current_path}",
+		"#{pane_title}",
+		"#{pane_dead}",
+	}, "\t")
+	out, err := runCommandOutput(io.Discard, "tmux", "list-panes", "-a", "-F", format)
+	if err != nil {
+		return nil, err
+	}
+	panes := []tmuxPaneInfo{}
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		parts := strings.Split(line, "\t")
+		for len(parts) < 7 {
+			parts = append(parts, "")
+		}
+		panes = append(panes, tmuxPaneInfo{
+			Session:     parts[0],
+			Window:      parts[1],
+			PaneID:      parts[2],
+			Command:     parts[3],
+			CurrentPath: parts[4],
+			Title:       parts[5],
+			Dead:        parts[6],
+		})
+	}
+	return panes, nil
+}
+
+func tmuxCapturePane(target string, lines int) (string, error) {
+	args := []string{"capture-pane", "-p", "-t", target}
+	if lines > 0 {
+		args = append(args, "-S", fmt.Sprintf("-%d", lines))
+	}
+	out, err := runCommandOutput(io.Discard, "tmux", args...)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimRight(out, "\n"), nil
+}
+
 func promptSummary(path string) string {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -1221,8 +1780,13 @@ func (a *App) isQuiet(lastActivity time.Time, logfile string) bool {
 }
 
 func (a *App) matchesAny(text string, patterns []string) bool {
+	matched, _ := a.matchesAnyWithExcerpt(text, patterns)
+	return matched
+}
+
+func (a *App) matchesAnyWithExcerpt(text string, patterns []string) (bool, string) {
 	if text == "" {
-		return false
+		return false, ""
 	}
 	for _, pattern := range patterns {
 		if pattern == "" {
@@ -1232,11 +1796,142 @@ func (a *App) matchesAny(text string, patterns []string) bool {
 		if err != nil {
 			continue
 		}
-		if re.MatchString(text) {
-			return true
+		for _, line := range strings.Split(text, "\n") {
+			if re.MatchString(line) {
+				return true, strings.TrimSpace(line)
+			}
 		}
 	}
-	return false
+	return false, ""
+}
+
+func clearAttention(agent *Agent) {
+	agent.AttentionReason = ""
+	agent.AttentionExcerpt = ""
+	agent.AttentionSince = nil
+	agent.LastError = ""
+}
+
+func attentionReasonForExcerpt(excerpt string) string {
+	lower := strings.ToLower(excerpt)
+	if strings.Contains(lower, "approval") || strings.Contains(lower, "allow") || strings.Contains(lower, "permission") {
+		return "approval"
+	}
+	if strings.Contains(lower, "error") || strings.Contains(lower, "failed") {
+		return "error"
+	}
+	return "input_required"
+}
+
+func lastNonEmptyLine(text string) string {
+	lines := strings.Split(text, "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if line != "" {
+			return line
+		}
+	}
+	return ""
+}
+
+func notificationMessage(agent *Agent) string {
+	reason := strings.TrimSpace(agent.AttentionReason)
+	excerpt := strings.TrimSpace(agent.AttentionExcerpt)
+	if reason != "" && excerpt != "" {
+		return fmt.Sprintf("%s needs %s — %s", agent.ID, reason, excerpt)
+	}
+	if reason != "" {
+		return fmt.Sprintf("%s needs %s", agent.ID, reason)
+	}
+	if agent.Status != "" {
+		return fmt.Sprintf("%s is %s", agent.ID, agent.Status)
+	}
+	return agent.ID
+}
+
+func dashboardMatchesFilter(agent *Agent, filter string) bool {
+	switch strings.ToLower(strings.TrimSpace(filter)) {
+	case "", "all":
+		return true
+	case "attention":
+		return agent.AttentionReason != "" || agent.Status == statusWaiting || agent.Status == statusQuiet || agent.Status == statusFailed
+	case "running":
+		return agent.Status == statusRunning || agent.Status == statusStarting
+	case "waiting":
+		return agent.Status == statusWaiting
+	case "quiet":
+		return agent.Status == statusQuiet
+	case "done":
+		return agent.Status == statusDone || agent.Status == statusFailed
+	case "archived":
+		return agent.ArchivedAt != nil
+	case "unmanaged":
+		return false
+	default:
+		return true
+	}
+}
+
+func sanitizeAgentID(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	var b strings.Builder
+	lastDash := false
+	for _, r := range value {
+		ok := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_'
+		if ok {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	id := strings.Trim(b.String(), "-_")
+	if id == "" {
+		return ""
+	}
+	if id[0] >= '0' && id[0] <= '9' {
+		id = "agent-" + id
+	}
+	return id
+}
+
+func reorderTrailingFlags(args []string, takesValue map[string]bool) []string {
+	if len(args) == 0 {
+		return args
+	}
+	flags := make([]string, 0, len(args))
+	positionals := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if !strings.HasPrefix(arg, "-") || arg == "-" {
+			positionals = append(positionals, arg)
+			continue
+		}
+		flags = append(flags, arg)
+		name := strings.TrimLeft(arg, "-")
+		if idx := strings.Index(name, "="); idx >= 0 {
+			continue
+		}
+		if takesValue[name] && i+1 < len(args) {
+			i++
+			flags = append(flags, args[i])
+		}
+	}
+	return append(flags, positionals...)
+}
+
+func gitCurrentBranch(path string) string {
+	if strings.TrimSpace(path) == "" {
+		return ""
+	}
+	out, err := runCommandOutput(io.Discard, "git", "-C", path, "branch", "--show-current")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(out)
 }
 
 func matchDoneLog(text string, patterns []string) bool {
@@ -1324,8 +2019,8 @@ func writeRunnerFromPrompt(a *App, scriptPath string, agent *Agent, codex string
 		c = append(c, quoteForShell(arg))
 	}
 	sb.WriteString(strings.Join(c, " "))
-	sb.WriteString(" \"$prompt\" >> \"$LOG_FILE\" 2>&1 || status=$?\n")
-	sb.WriteString("echo \"[litents] codex exited with status $status\" >> \"$LOG_FILE\"\n")
+	sb.WriteString(" \"$prompt\" 2>&1 || status=$?\n")
+	sb.WriteString("echo \"[litents] codex exited with status $status\"\n")
 	sb.WriteString("exit ${status}\n")
 	if err := ensureDir(filepath.Dir(scriptPath)); err != nil {
 		return err
@@ -1350,7 +2045,7 @@ func writeRunnerFromCommand(a *App, scriptPath, worktree, logFile, command strin
 		c = append(c, quoteForShell(arg))
 	}
 	sb.WriteString(strings.Join(c, " "))
-	sb.WriteString(" >> \"$LOG_FILE\" 2>&1 || true\n")
+	sb.WriteString(" 2>&1 || true\n")
 	if err := ensureDir(filepath.Dir(scriptPath)); err != nil {
 		return err
 	}

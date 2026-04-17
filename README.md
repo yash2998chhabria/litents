@@ -19,7 +19,11 @@ Litents keeps Codex workflows fast, inspectable, and shell-native:
 
 - `init`: initialize a repo and create a tmux session
 - `new`: launch a new agent in its own worktree
-- `status | ls`: show agent table with status
+- `dash`: open the terminal dashboard; `litents` with no args should land here
+- `discover`: scan tmux and surface unmanaged Codex-like panes
+- `adopt`: track an existing Codex pane without relaunching it
+- `untrack`: remove Litents tracking without killing the underlying pane
+- `status | ls`: show the agent table with status and attention-aware fields
 - `watch`: poll agent states and notify on state transitions
 - `attach`: jump to a running agent window
 - `send`: send text / input to an agent
@@ -65,9 +69,16 @@ litents init ~/code/myrepo
 # create a new agent
 litents new planner --prompt "Inspect repository and draft a fix strategy."
 
+# open the dashboard
+litents
+
 # list and watch all agents
 litents status
 litents watch --project myrepo
+
+# discover or adopt existing panes
+litents discover
+litents adopt %12 --project myrepo --id existing-codex
 
 # view output
 litents tail planner
@@ -86,8 +97,11 @@ Example per-agent files:
 ~/.local/state/litents/projects/<project>/agents/<agent-id>/
   ├─ agent.json
   ├─ prompt.md
+  ├─ events.jsonl
   └─ output.log
 ```
+
+The agent metadata carries attention-aware fields such as `source`, `attention_reason`, `attention_excerpt`, and `attention_since` so the dashboard and notifications can explain why a session needs help.
 
 ## Configuration
 
@@ -146,23 +160,29 @@ Command:
 ./benchmarking_md/compare-with-popular-tools.sh
 ```
 
-Latest run (20 repeats, macOS, darwin/arm64, go1.26.2, Zellij 0.44.1, Codex CLI 0.120.0, Agent of Empires 1.4.3):
+Latest run (20 repeats, macOS, darwin/arm64, go1.26.2, Zellij 0.44.1, Codex CLI 0.121.0, Agent of Empires 1.4.3):
 
 | Metric | Litents | Zellij | Codex app-server | Agent of Empires |
 | --- | ---: | ---: | ---: | ---: |
-| Initialize control surface | 20 runs, mean=24.20ms (p50=23ms, p95=28ms, min=21ms, max=39ms) | 20 runs, mean=54.60ms (p50=51ms, p95=65ms, min=47ms, max=103ms) | 20 runs, mean=44.00ms (p50=44ms, p95=46ms, min=39ms, max=57ms) | 20 runs, mean=8.45ms (p50=8ms, p95=10ms, min=7ms, max=16ms) |
-| Start one workload | 20 runs, mean=18.05ms (p50=17ms, p95=21ms, min=15ms, max=26ms) | 20 runs, mean=50.35ms (p50=47ms, p95=70ms, min=39ms, max=96ms) | N/A | 20 runs, mean=64.55ms (p50=61ms, p95=73ms, min=57ms, max=114ms) |
-| Status/list/health poll | 20 runs, mean=11.70ms (p50=10ms, p95=11ms, min=9ms, max=50ms) | 20 runs, mean=19.40ms (p50=18ms, p95=24ms, min=16ms, max=25ms) | 20 runs, mean=7.60ms (p50=8ms, p95=9ms, min=6ms, max=10ms) | 20 runs, mean=26.50ms (p50=24ms, p95=30ms, min=21ms, max=68ms) |
-| Stop control surface | 20 runs, mean=728.20ms (p50=726ms, p95=729ms, min=719ms, max=778ms) | 20 runs, mean=17.45ms (p50=15ms, p95=17ms, min=12ms, max=71ms) | 20 runs, mean=3.30ms (p50=3ms, p95=4ms, min=3ms, max=4ms) | 20 runs, mean=148.10ms (p50=147ms, p95=152ms, min=142ms, max=161ms) |
-| Cleanup state files | 20 runs, mean=53.20ms (p50=43ms, p95=48ms, min=33ms, max=257ms) | N/A | N/A | 20 runs, mean=13.95ms (p50=14ms, p95=15ms, min=11ms, max=21ms) |
+| Initialize control surface | 20 runs, mean=32.95ms (p50=24ms, p95=28ms, min=22ms, max=196ms) | 20 runs, mean=51.05ms (p50=49ms, p95=55ms, min=48ms, max=77ms) | 20 runs, mean=48.85ms (p50=44ms, p95=48ms, min=40ms, max=149ms) | 20 runs, mean=8.35ms (p50=7ms, p95=9ms, min=7ms, max=23ms) |
+| Start one workload | 20 runs, mean=18.05ms (p50=18ms, p95=20ms, min=17ms, max=20ms) | 20 runs, mean=52.55ms (p50=46ms, p95=97ms, min=43ms, max=105ms) | N/A | 20 runs, mean=64.45ms (p50=60ms, p95=66ms, min=59ms, max=132ms) |
+| Status/list/health poll | 20 runs, mean=10.20ms (p50=10ms, p95=11ms, min=9ms, max=11ms) | 20 runs, mean=21.30ms (p50=21ms, p95=27ms, min=16ms, max=31ms) | 20 runs, mean=7.30ms (p50=7ms, p95=8ms, min=7ms, max=9ms) | 20 runs, mean=23.95ms (p50=23ms, p95=27ms, min=22ms, max=29ms) |
+| Dashboard render | 20 runs, mean=19.75ms (p50=19ms, p95=21ms, min=18ms, max=26ms) | N/A | N/A | N/A |
+| Peek recent output | 20 runs, mean=9.20ms (p50=8ms, p95=10ms, min=7ms, max=28ms) | N/A | N/A | N/A |
+| Discover unmanaged panes | 20 runs, mean=11.55ms (p50=11ms, p95=14ms, min=10ms, max=21ms) | N/A | N/A | N/A |
+| Adopt unmanaged pane | 20 runs, mean=35.10ms (p50=34ms, p95=39ms, min=33ms, max=39ms) | N/A | N/A | N/A |
+| Untrack adopted pane | 20 runs, mean=5.20ms (p50=5ms, p95=6ms, min=5ms, max=6ms) | N/A | N/A | N/A |
+| Stop control surface | 20 runs, mean=725.15ms (p50=726ms, p95=728ms, min=721ms, max=729ms) | 20 runs, mean=14.35ms (p50=14ms, p95=16ms, min=13ms, max=16ms) | 20 runs, mean=3.80ms (p50=3ms, p95=7ms, min=3ms, max=9ms) | 20 runs, mean=147.70ms (p50=148ms, p95=150ms, min=144ms, max=151ms) |
+| Cleanup state files | 20 runs, mean=40.30ms (p50=41ms, p95=43ms, min=36ms, max=44ms) | N/A | N/A | 20 runs, mean=13.65ms (p50=14ms, p95=15ms, min=11ms, max=15ms) |
 
 ### Readable summary
 
 | Area | Takeaway |
 | --- | --- |
-| Startup | Litents initializes in 24.20ms mean, faster than Zellij and Codex app-server in this run while still creating project/session state. Agent of Empires has a faster config-only init path. |
-| Workload launch | Litents is the fastest measured tool for starting the synthetic agent workload: 18.05ms mean vs 50.35ms for Zellij and 64.55ms for Agent of Empires. |
-| Status polling | Litents status is 11.70ms mean while reading project/agent state. Codex app-server health is faster, but it is a health endpoint rather than an agent/workspace status table. |
+| Startup | Litents initializes in 32.95ms mean, faster than Zellij and Codex app-server in this run while still creating project/session state. Agent of Empires has a faster config-only init path. |
+| Workload launch | Litents is the fastest measured tool for starting the synthetic agent workload: 18.05ms mean vs 52.55ms for Zellij and 64.45ms for Agent of Empires. |
+| Status polling | Litents status is 10.20ms mean while reading project/agent state. Codex app-server health is faster, but it is a health endpoint rather than an agent/workspace status table. |
+| Supervisor commands | Dashboard render is 19.75ms mean, peek is 9.20ms, discover is 11.55ms, adopt is 35.10ms, and untrack is 5.20ms in this run. |
 | Stop behavior | Litents is intentionally slower because `stop` waits for graceful interrupt before force cleanup. |
 | Coverage | The harness now includes Zellij, Codex app-server, and Agent of Empires. Claude Squad, CCManager, and Sidecar are installed/probed but need a richer TUI/worktree automation harness for lifecycle timings. |
 
@@ -172,7 +192,7 @@ Full timing output is in [benchmarking_md/tool-comparison-results.md](benchmarki
 
 ### Resource usage
 
-Resource benchmarks use the same headless lifecycle shape but measure peak RSS and CPU time for each lifecycle command. Litents has no resident daemon after commands exit, so these numbers represent orchestration command overhead rather than a terminal emulator or desktop GUI memory profile.
+Resource benchmarks use the same headless lifecycle shape but measure peak RSS and CPU time for each lifecycle command. Litents has no resident daemon after commands exit, so these numbers represent orchestration command overhead rather than a terminal emulator or desktop GUI memory profile. The benchmark now covers the operator surface too: dashboard, peek, discovery, adoption, and untracking.
 
 Command:
 
@@ -184,11 +204,16 @@ Latest peak RSS summary (10 repeats, macOS, darwin/arm64):
 
 | Metric | Litents | Zellij | Codex app-server | Agent of Empires |
 | --- | ---: | ---: | ---: | ---: |
-| Initialize control surface | 10 runs, mean=5.19MiB (p50=5.11MiB, p95=5.39MiB, min=4.92MiB, max=5.44MiB) | 10 runs, mean=14.74MiB (p50=14.72MiB, p95=14.80MiB, min=14.61MiB, max=14.83MiB) | 10 runs, mean=4.71MiB (p50=4.70MiB, p95=4.75MiB, min=4.70MiB, max=4.75MiB) | 10 runs, mean=8.18MiB (p50=8.17MiB, p95=8.20MiB, min=8.11MiB, max=8.23MiB) |
-| Start one workload | 10 runs, mean=5.06MiB (p50=5.02MiB, p95=5.09MiB, min=4.98MiB, max=5.36MiB) | 10 runs, mean=13.78MiB (p50=13.78MiB, p95=13.83MiB, min=13.66MiB, max=13.86MiB) | N/A | 10 runs, mean=25.47MiB (p50=25.47MiB, p95=25.64MiB, min=25.23MiB, max=25.69MiB) |
-| Status/list/health poll | 10 runs, mean=5.10MiB (p50=5.11MiB, p95=5.20MiB, min=4.92MiB, max=5.22MiB) | 10 runs, mean=13.59MiB (p50=13.59MiB, p95=13.67MiB, min=13.50MiB, max=13.69MiB) | 10 runs, mean=4.71MiB (p50=4.70MiB, p95=4.73MiB, min=4.70MiB, max=4.73MiB) | 10 runs, mean=8.76MiB (p50=8.75MiB, p95=8.80MiB, min=8.72MiB, max=8.83MiB) |
-| Stop control surface | 10 runs, mean=5.32MiB (p50=5.28MiB, p95=5.48MiB, min=5.16MiB, max=5.48MiB) | 10 runs, mean=13.34MiB (p50=13.34MiB, p95=13.47MiB, min=13.22MiB, max=13.47MiB) | 10 runs, mean=1.86MiB (p50=1.86MiB, p95=1.86MiB, min=1.86MiB, max=1.86MiB) | 10 runs, mean=8.91MiB (p50=8.89MiB, p95=8.94MiB, min=8.86MiB, max=8.95MiB) |
-| Cleanup state files | 10 runs, mean=5.32MiB (p50=5.27MiB, p95=5.52MiB, min=5.02MiB, max=5.53MiB) | N/A | N/A | 10 runs, mean=8.80MiB (p50=8.80MiB, p95=8.83MiB, min=8.72MiB, max=8.89MiB) |
+| Initialize control surface | 10 runs, mean=5.19MiB (p50=5.11MiB, p95=5.50MiB, min=5.02MiB, max=5.59MiB) | 10 runs, mean=14.72MiB (p50=14.73MiB, p95=14.78MiB, min=14.62MiB, max=14.83MiB) | 10 runs, mean=4.72MiB (p50=4.70MiB, p95=4.73MiB, min=4.70MiB, max=4.75MiB) | 10 runs, mean=8.16MiB (p50=8.16MiB, p95=8.17MiB, min=8.14MiB, max=8.17MiB) |
+| Start one workload | 10 runs, mean=5.25MiB (p50=5.20MiB, p95=5.38MiB, min=5.09MiB, max=5.42MiB) | 10 runs, mean=13.79MiB (p50=13.78MiB, p95=13.84MiB, min=13.73MiB, max=13.86MiB) | N/A | 10 runs, mean=25.56MiB (p50=25.53MiB, p95=25.77MiB, min=25.23MiB, max=26.02MiB) |
+| Status/list/health poll | 10 runs, mean=5.28MiB (p50=5.27MiB, p95=5.39MiB, min=5.14MiB, max=5.41MiB) | 10 runs, mean=13.58MiB (p50=13.59MiB, p95=13.61MiB, min=13.52MiB, max=13.62MiB) | 10 runs, mean=4.72MiB (p50=4.70MiB, p95=4.73MiB, min=4.70MiB, max=4.77MiB) | 10 runs, mean=8.76MiB (p50=8.77MiB, p95=8.78MiB, min=8.70MiB, max=8.81MiB) |
+| Dashboard render | 10 runs, mean=5.56MiB (p50=5.53MiB, p95=5.66MiB, min=5.47MiB, max=5.73MiB) | N/A | N/A | N/A |
+| Peek recent output | 10 runs, mean=5.15MiB (p50=5.09MiB, p95=5.20MiB, min=5.00MiB, max=5.38MiB) | N/A | N/A | N/A |
+| Discover unmanaged panes | 10 runs, mean=5.40MiB (p50=5.38MiB, p95=5.48MiB, min=5.27MiB, max=5.53MiB) | N/A | N/A | N/A |
+| Adopt unmanaged pane | 10 runs, mean=5.86MiB (p50=5.86MiB, p95=6.20MiB, min=5.47MiB, max=6.23MiB) | N/A | N/A | N/A |
+| Untrack adopted pane | 10 runs, mean=4.97MiB (p50=4.92MiB, p95=5.14MiB, min=4.83MiB, max=5.16MiB) | N/A | N/A | N/A |
+| Stop control surface | 10 runs, mean=5.45MiB (p50=5.47MiB, p95=5.52MiB, min=5.22MiB, max=5.62MiB) | 10 runs, mean=13.33MiB (p50=13.34MiB, p95=13.39MiB, min=13.20MiB, max=13.39MiB) | 10 runs, mean=1.86MiB (p50=1.86MiB, p95=1.86MiB, min=1.86MiB, max=1.86MiB) | 10 runs, mean=8.92MiB (p50=8.91MiB, p95=8.95MiB, min=8.86MiB, max=9.02MiB) |
+| Cleanup state files | 10 runs, mean=5.42MiB (p50=5.41MiB, p95=5.50MiB, min=5.28MiB, max=5.61MiB) | N/A | N/A | 10 runs, mean=8.78MiB (p50=8.78MiB, p95=8.81MiB, min=8.75MiB, max=8.83MiB) |
 
 All resource output is in [benchmarking_md/resource-comparison-results.md](benchmarking_md/resource-comparison-results.md).
 
@@ -206,13 +231,13 @@ Latest installed CLI/TUI probe summary:
 
 | Product | Local status | Probe | Peak RSS |
 | --- | --- | --- | ---: |
-| Litents | local source build | `litents doctor` | 20 runs, mean=4.34MiB (p50=4.31MiB, p95=4.42MiB, min=4.27MiB, max=4.44MiB) |
-| Claude Squad | 1.0.17 | `claude-squad version` | 20 runs, mean=5.91MiB (p50=5.89MiB, p95=6.05MiB, min=5.80MiB, max=6.06MiB) |
-| Agent of Empires | 1.4.3 | `aoe --version` | 20 runs, mean=8.15MiB (p50=8.16MiB, p95=8.16MiB, min=8.12MiB, max=8.16MiB) |
-| Zellij | 0.44.1 | `zellij --version` | 20 runs, mean=10.30MiB (p50=10.30MiB, p95=10.33MiB, min=10.27MiB, max=10.34MiB) |
-| Codex CLI | 0.120.0 | `codex --version` | 20 runs, mean=16.04MiB (p50=16.03MiB, p95=16.09MiB, min=15.98MiB, max=16.09MiB) |
-| Sidecar Workspaces | 0.83.0 | `sidecar --version` | 20 runs, mean=28.33MiB (p50=28.27MiB, p95=28.84MiB, min=27.98MiB, max=29.19MiB) |
-| CCManager | 4.1.7 | `ccmanager --version` | 20 runs, mean=67.43MiB (p50=67.44MiB, p95=67.55MiB, min=67.14MiB, max=67.61MiB) |
+| Litents | local source build | `litents doctor` | 20 runs, mean=4.42MiB (p50=4.42MiB, p95=4.58MiB, min=4.31MiB, max=4.58MiB) |
+| Claude Squad | 1.0.17 | `claude-squad version` | 20 runs, mean=5.92MiB (p50=5.91MiB, p95=6.09MiB, min=5.78MiB, max=6.31MiB) |
+| Agent of Empires | 1.4.3 | `aoe --version` | 20 runs, mean=8.15MiB (p50=8.16MiB, p95=8.17MiB, min=8.12MiB, max=8.17MiB) |
+| Zellij | 0.44.1 | `zellij --version` | 20 runs, mean=10.30MiB (p50=10.30MiB, p95=10.33MiB, min=10.27MiB, max=10.33MiB) |
+| Codex CLI | 0.121.0 | `codex --version` | 20 runs, mean=16.19MiB (p50=16.19MiB, p95=16.23MiB, min=16.14MiB, max=16.23MiB) |
+| Sidecar Workspaces | 0.83.0 | `sidecar --version` | 20 runs, mean=28.44MiB (p50=28.41MiB, p95=28.95MiB, min=28.00MiB, max=28.98MiB) |
+| CCManager | 4.1.7 | `ccmanager --version` | 20 runs, mean=67.51MiB (p50=67.47MiB, p95=67.67MiB, min=67.33MiB, max=67.69MiB) |
 
 Full coverage matrix is in [benchmarking_md/orchestrator-probe-results.md](benchmarking_md/orchestrator-probe-results.md).
 

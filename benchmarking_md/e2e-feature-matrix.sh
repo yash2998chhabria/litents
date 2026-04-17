@@ -113,10 +113,28 @@ sleep 1
 echo "[e2e] checking status/ls output"
 status_check "$LITENTS_BIN" status --project "$PROJECT_NAME" | grep -q "$AGENT_NAME"
 status_check "$LITENTS_BIN" ls --project "$PROJECT_NAME" | grep -q "$AGENT_NAME"
+status_check "$LITENTS_BIN" dash --project "$PROJECT_NAME" --preview "$AGENT_NAME" --n 5 | grep -q "Litents dashboard"
 
 echo "[e2e] checking tail output capture"
 if ! status_check "$LITENTS_BIN" tail --project "$PROJECT_NAME" --n 5 "$AGENT_NAME" | grep -q "agent tick"; then
   echo "[e2e] expected initial log output missing"
+  exit 1
+fi
+if ! status_check "$LITENTS_BIN" peek --project "$PROJECT_NAME" --n 5 "$AGENT_NAME" | grep -q "agent tick"; then
+  echo "[e2e] expected peek output missing"
+  exit 1
+fi
+
+echo "[e2e] discovering and adopting unmanaged Codex pane"
+tmux new-window -t "$TMUX_SESSION_NAME" -n unmanaged-codex -c "$REPO_ROOT" "$CODEX_SHIM" 'while true; do echo "unmanaged codex tick"; sleep 0.3; done'
+sleep 1
+UNMANAGED_PANE="$(tmux list-panes -t "$TMUX_SESSION_NAME:unmanaged-codex" -F '#{pane_id}' | head -n 1)"
+status_check "$LITENTS_BIN" discover | grep -q "$UNMANAGED_PANE"
+status_check "$LITENTS_BIN" adopt "$UNMANAGED_PANE" --project "$PROJECT_NAME" --id adopted-codex
+status_check "$LITENTS_BIN" status --project "$PROJECT_NAME" | grep -q "adopted"
+status_check "$LITENTS_BIN" untrack --project "$PROJECT_NAME" adopted-codex
+if status_check "$LITENTS_BIN" status --project "$PROJECT_NAME" | grep -q "adopted-codex"; then
+  echo "[e2e] expected adopted pane untracked"
   exit 1
 fi
 

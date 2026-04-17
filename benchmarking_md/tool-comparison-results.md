@@ -1,13 +1,13 @@
 # Litents vs Popular CLI Baselines
 
-Generated on: 2026-04-17T05:14:08Z
+Generated on: 2026-04-17T05:39:52Z
 
 Host: Darwin arm64
 Go: go1.26.2
 Litents binary: /Users/yashchhabria/Projects/litents/.tmp-litents-bench-bin
-Litents source: c2cfea1+local
+Litents source: d8d5fa8+local
 Zellij: zellij 0.44.1
-Codex: codex-cli 0.120.0
+Codex: codex-cli 0.121.0
 Agent of Empires: aoe 1.4.3
 
 Method:
@@ -24,8 +24,13 @@ Method:
 
 Metric | Litents | Zellij | Codex app-server | Agent of Empires
 ---|---|---|---|---
-Initialize control surface |       20 runs, mean=24.20ms (p50=23ms, p95=28ms, min=21ms, max=39ms) |       20 runs, mean=54.60ms (p50=51ms, p95=65ms, min=47ms, max=103ms) |       20 runs, mean=44.00ms (p50=44ms, p95=46ms, min=39ms, max=57ms) |       20 runs, mean=8.45ms (p50=8ms, p95=10ms, min=7ms, max=16ms)
-Start one workload |       20 runs, mean=18.05ms (p50=17ms, p95=21ms, min=15ms, max=26ms) |       20 runs, mean=50.35ms (p50=47ms, p95=70ms, min=39ms, max=96ms) | N/A |       20 runs, mean=64.55ms (p50=61ms, p95=73ms, min=57ms, max=114ms)
-Status/list/health poll |       20 runs, mean=11.70ms (p50=10ms, p95=11ms, min=9ms, max=50ms) |       20 runs, mean=19.40ms (p50=18ms, p95=24ms, min=16ms, max=25ms) |       20 runs, mean=7.60ms (p50=8ms, p95=9ms, min=6ms, max=10ms) |       20 runs, mean=26.50ms (p50=24ms, p95=30ms, min=21ms, max=68ms)
-Stop control surface |       20 runs, mean=728.20ms (p50=726ms, p95=729ms, min=719ms, max=778ms) |       20 runs, mean=17.45ms (p50=15ms, p95=17ms, min=12ms, max=71ms) |       20 runs, mean=3.30ms (p50=3ms, p95=4ms, min=3ms, max=4ms) |       20 runs, mean=148.10ms (p50=147ms, p95=152ms, min=142ms, max=161ms)
-Cleanup state files |       20 runs, mean=53.20ms (p50=43ms, p95=48ms, min=33ms, max=257ms) | N/A | N/A |       20 runs, mean=13.95ms (p50=14ms, p95=15ms, min=11ms, max=21ms)
+Initialize control surface |       20 runs, mean=32.95ms (p50=24ms, p95=28ms, min=22ms, max=196ms) |       20 runs, mean=51.05ms (p50=49ms, p95=55ms, min=48ms, max=77ms) |       20 runs, mean=48.85ms (p50=44ms, p95=48ms, min=40ms, max=149ms) |       20 runs, mean=8.35ms (p50=7ms, p95=9ms, min=7ms, max=23ms)
+Start one workload |       20 runs, mean=18.05ms (p50=18ms, p95=20ms, min=17ms, max=20ms) |       20 runs, mean=52.55ms (p50=46ms, p95=97ms, min=43ms, max=105ms) | N/A |       20 runs, mean=64.45ms (p50=60ms, p95=66ms, min=59ms, max=132ms)
+Status/list/health poll |       20 runs, mean=10.20ms (p50=10ms, p95=11ms, min=9ms, max=11ms) |       20 runs, mean=21.30ms (p50=21ms, p95=27ms, min=16ms, max=31ms) |       20 runs, mean=7.30ms (p50=7ms, p95=8ms, min=7ms, max=9ms) |       20 runs, mean=23.95ms (p50=23ms, p95=27ms, min=22ms, max=29ms)
+Dashboard render |       20 runs, mean=19.75ms (p50=19ms, p95=21ms, min=18ms, max=26ms) | N/A | N/A | N/A
+Peek recent output |       20 runs, mean=9.20ms (p50=8ms, p95=10ms, min=7ms, max=28ms) | N/A | N/A | N/A
+Discover unmanaged panes |       20 runs, mean=11.55ms (p50=11ms, p95=14ms, min=10ms, max=21ms) | N/A | N/A | N/A
+Adopt unmanaged pane |       20 runs, mean=35.10ms (p50=34ms, p95=39ms, min=33ms, max=39ms) | N/A | N/A | N/A
+Untrack adopted pane |       20 runs, mean=5.20ms (p50=5ms, p95=6ms, min=5ms, max=6ms) | N/A | N/A | N/A
+Stop control surface |       20 runs, mean=725.15ms (p50=726ms, p95=728ms, min=721ms, max=729ms) |       20 runs, mean=14.35ms (p50=14ms, p95=16ms, min=13ms, max=16ms) |       20 runs, mean=3.80ms (p50=3ms, p95=7ms, min=3ms, max=9ms) |       20 runs, mean=147.70ms (p50=148ms, p95=150ms, min=144ms, max=151ms)
+Cleanup state files |       20 runs, mean=40.30ms (p50=41ms, p95=43ms, min=36ms, max=44ms) | N/A | N/A |       20 runs, mean=13.65ms (p50=14ms, p95=15ms, min=11ms, max=15ms)

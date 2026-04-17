@@ -24,7 +24,7 @@ Do claim, if the data supports it:
 
 - “Litents had the **lowest orchestration overhead** among the tested local multi-agent tools.”
 - “Litents had the **fastest operator workflows** for monitoring, resuming, and responding to waiting agents among the tested local baselines.”
-- “Litents stayed **closest to raw tmux + Codex CLI** while adding supervision, notifications, and history.”
+- “Litents stayed **close to terminal-native control paths** while adding supervision, notifications, and history.”
 
 This benchmark can prove Litents is best **for a defined class of workloads and baselines**, not for every possible workflow.
 
@@ -87,33 +87,36 @@ This track shows whether Litents stays low-overhead in the real world.
    - event-driven where possible
    - no daemon unless explicitly required
 
-2. **Raw tmux + Codex CLI + shell scripts**
-   - this is the true lightweight baseline
-   - Litents should aim to stay as close to this as possible while adding orchestration features
-   - status: baseline run implemented
-   - script: [compare-with-popular-tools.sh](compare-with-popular-tools.sh)
-   - latest data: [tool-comparison-results.md](tool-comparison-results.md)
-
-3. **Zellij + Codex CLI**
+2. **Zellij + Codex CLI**
    - modern terminal-native session manager baseline
    - good comparison for “lightweight but more productized than tmux”
    - status: detached session + tab baseline implemented in [compare-with-popular-tools.sh](compare-with-popular-tools.sh)
    - latest data: [tool-comparison-results.md](tool-comparison-results.md)
 
-4. **Codex app**
+3. **Codex app-server**
    - official OpenAI desktop multi-agent baseline
    - compare only on platforms where it exists
    - status: headless `codex app-server` baseline implemented in [compare-with-popular-tools.sh](compare-with-popular-tools.sh)
    - note: desktop GUI launch is not included because it is not reproducible in a headless shell harness
    - latest data: [tool-comparison-results.md](tool-comparison-results.md)
 
+4. **Agent of Empires**
+   - terminal-native tmux/worktree manager baseline
+   - status: non-interactive lifecycle baseline implemented in [compare-with-popular-tools.sh](compare-with-popular-tools.sh) with a temporary fake `codex` shim
+   - latest data: [tool-comparison-results.md](tool-comparison-results.md)
+
+`tmux` itself is no longer a published competitor baseline. It remains an important implementation substrate and dependency to record, but the public comparison should focus on orchestration products rather than the primitive they build on.
+
 ### Optional baselines
 
-5. **Mux local mode**
-   - compare only if it can be run reproducibly in a local-only workflow
+5. **Claude Squad / CCManager / Sidecar Workspaces**
+   - compare when the harness can create and drive sessions non-interactively
+   - status: installed/probed locally; lifecycle harness pending
+   - latest notes: [product-comparison-results.md](product-comparison-results.md)
 
-6. **Litents-Go prototype**
-   - only if you build an early Go version and want a language/architecture shootout
+6. **Agent Hand / Agent Deck**
+   - compare when upstream install paths are reproducible in CI/local automation
+   - latest notes: [product-comparison-results.md](product-comparison-results.md)
 
 ### What not to benchmark as a primary baseline
 
@@ -135,19 +138,19 @@ Run benchmarks separately by OS.
 Include:
 
 - Litents
-- raw tmux + Codex CLI
 - Zellij + Codex CLI
-- Codex app
-- optional Mux
+- Codex app-server
+- Agent of Empires
+- optional Claude Squad, CCManager, Sidecar Workspaces when their harnesses are non-interactive
 
 ### Linux matrix
 
 Include:
 
 - Litents
-- raw tmux + Codex CLI
 - Zellij + Codex CLI
-- optional Mux
+- Agent of Empires
+- optional Claude Squad, CCManager, Sidecar Workspaces when their harnesses are non-interactive
 
 Do **not** include Codex app on Linux. As of the current official docs, the Codex app is available on **macOS and Windows**, and OpenAI only offers “Get notified for Linux.”
 
@@ -162,8 +165,9 @@ Record and pin:
 - Litents commit SHA
 - Codex CLI version
 - Codex app version
-- tmux version
+- tmux version for tools that use it as their session substrate
 - Zellij version
+- Agent of Empires version
 - OS version
 - shell version
 - repo commit SHA

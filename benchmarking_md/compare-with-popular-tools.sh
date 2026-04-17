@@ -24,6 +24,11 @@ if command -v codex >/dev/null 2>&1 && command -v curl >/dev/null 2>&1; then
   HAS_CODEX_APP_SERVER=1
 fi
 
+HAS_AOE=0
+if command -v aoe >/dev/null 2>&1; then
+  HAS_AOE=1
+fi
+
 now_ns() {
   date +%s%N
 }
@@ -81,10 +86,6 @@ litents_new_tmp="$(mktemp)"
 litents_status_tmp="$(mktemp)"
 litents_stop_tmp="$(mktemp)"
 litents_clean_tmp="$(mktemp)"
-tmux_init_tmp="$(mktemp)"
-tmux_new_tmp="$(mktemp)"
-tmux_list_tmp="$(mktemp)"
-tmux_kill_tmp="$(mktemp)"
 zellij_init_tmp="$(mktemp)"
 zellij_new_tmp="$(mktemp)"
 zellij_list_tmp="$(mktemp)"
@@ -92,16 +93,17 @@ zellij_kill_tmp="$(mktemp)"
 codex_app_start_tmp="$(mktemp)"
 codex_app_health_tmp="$(mktemp)"
 codex_app_stop_tmp="$(mktemp)"
+aoe_init_tmp="$(mktemp)"
+aoe_start_tmp="$(mktemp)"
+aoe_status_tmp="$(mktemp)"
+aoe_stop_tmp="$(mktemp)"
+aoe_remove_tmp="$(mktemp)"
 
 : >"$litents_init_tmp"
 : >"$litents_new_tmp"
 : >"$litents_status_tmp"
 : >"$litents_stop_tmp"
 : >"$litents_clean_tmp"
-: >"$tmux_init_tmp"
-: >"$tmux_new_tmp"
-: >"$tmux_list_tmp"
-: >"$tmux_kill_tmp"
 : >"$zellij_init_tmp"
 : >"$zellij_new_tmp"
 : >"$zellij_list_tmp"
@@ -109,6 +111,11 @@ codex_app_stop_tmp="$(mktemp)"
 : >"$codex_app_start_tmp"
 : >"$codex_app_health_tmp"
 : >"$codex_app_stop_tmp"
+: >"$aoe_init_tmp"
+: >"$aoe_start_tmp"
+: >"$aoe_status_tmp"
+: >"$aoe_stop_tmp"
+: >"$aoe_remove_tmp"
 
 for i in $(seq 1 "$RUNS"); do
   work_dir="$(mktemp -d)"
@@ -137,7 +144,6 @@ EOF_CFG
 
   base_env=(XDG_CONFIG_HOME="$config_root" XDG_STATE_HOME="$state_root")
   litents_session="ltcmp-${session_suffix}"
-  tmux_session="ltmux-${session_suffix}"
   agent_script="$work_dir/agent-workload.sh"
   cat >"$agent_script" <<EOF_WORKLOAD
 #!/bin/sh
@@ -145,6 +151,16 @@ sleep $WORKLOAD_SECONDS
 echo done
 EOF_WORKLOAD
   chmod +x "$agent_script"
+
+  if (( HAS_AOE == 1 )); then
+    mkdir -p "$work_dir/bin" "$work_dir/home" "$work_dir/aoe-config" "$work_dir/aoe-data"
+    cat >"$work_dir/bin/codex" <<EOF_CODEX
+#!/bin/sh
+sleep $WORKLOAD_SECONDS
+echo done
+EOF_CODEX
+    chmod +x "$work_dir/bin/codex"
+  fi
 
   litents_init_ms=$(measure_ms "$run_log" env "${base_env[@]}" "$LITENTS_BIN" init --no-watch --session "$litents_session" "$repo_dir")
   echo "$litents_init_ms" >> "$litents_init_tmp"
@@ -161,18 +177,6 @@ EOF_WORKLOAD
 
   litents_clean_ms=$(measure_ms "$run_log" env "${base_env[@]}" "$LITENTS_BIN" clean --project "$project_name" --worktrees)
   echo "$litents_clean_ms" >> "$litents_clean_tmp"
-
-  tmux_init_ms=$(measure_ms "$run_log" tmux new-session -d -s "$tmux_session" -n "home" -c "$repo_dir" "$agent_script")
-  echo "$tmux_init_ms" >> "$tmux_init_tmp"
-
-  tmux_new_ms=$(measure_ms "$run_log" tmux new-window -t "$tmux_session" -n "$agent_name" -c "$repo_dir" "$agent_script")
-  echo "$tmux_new_ms" >> "$tmux_new_tmp"
-
-  tmux_list_ms=$(measure_ms "$run_log" tmux list-windows -t "$tmux_session")
-  echo "$tmux_list_ms" >> "$tmux_list_tmp"
-
-  tmux_kill_ms=$(measure_ms "$run_log" tmux kill-session -t "$tmux_session")
-  echo "$tmux_kill_ms" >> "$tmux_kill_tmp"
 
   if (( HAS_ZELLIJ == 1 )); then
     zellij_session="ltzel-${session_suffix}"
@@ -233,6 +237,35 @@ EOF_WORKLOAD
     echo $(( (end - start) / 1000000 )) >> "$codex_app_stop_tmp"
   fi
 
+  if (( HAS_AOE == 1 )); then
+    aoe_repo_dir="$work_dir/aoe-repo"
+    aoe_profile="litents-bench-${session_suffix}"
+    aoe_session="litents-bench-aoe-${i}"
+    aoe_env=(HOME="$work_dir/home" XDG_CONFIG_HOME="$work_dir/aoe-config" XDG_DATA_HOME="$work_dir/aoe-data" PATH="$work_dir/bin:$PATH")
+
+    mkdir -p "$aoe_repo_dir"
+    git -C "$aoe_repo_dir" init -q
+
+    aoe_init_ms=$(measure_ms "$run_log" env "${aoe_env[@]}" aoe init -p "$aoe_profile" "$aoe_repo_dir")
+    echo "$aoe_init_ms" >> "$aoe_init_tmp"
+
+    start=$(now_ns)
+    env "${aoe_env[@]}" aoe add -p "$aoe_profile" "$aoe_repo_dir" -t "$aoe_session" -c codex >>"$run_log" 2>&1
+    env "${aoe_env[@]}" aoe session start -p "$aoe_profile" "$aoe_session" >>"$run_log" 2>&1
+    end=$(now_ns)
+    echo $(( (end - start) / 1000000 )) >> "$aoe_start_tmp"
+
+    sleep 0.05
+    aoe_status_ms=$(measure_ms "$run_log" env "${aoe_env[@]}" aoe status -p "$aoe_profile" --json)
+    echo "$aoe_status_ms" >> "$aoe_status_tmp"
+
+    aoe_stop_ms=$(measure_ms "$run_log" env "${aoe_env[@]}" aoe session stop -p "$aoe_profile" "$aoe_session")
+    echo "$aoe_stop_ms" >> "$aoe_stop_tmp"
+
+    aoe_remove_ms=$(measure_ms "$run_log" env "${aoe_env[@]}" aoe remove -p "$aoe_profile" "$aoe_session" --force)
+    echo "$aoe_remove_ms" >> "$aoe_remove_tmp"
+  fi
+
   rm -rf "$work_dir"
 
 done
@@ -242,10 +275,6 @@ litents_new_stats=$(print_stats "$litents_new_tmp")
 litents_status_stats=$(print_stats "$litents_status_tmp")
 litents_stop_stats=$(print_stats "$litents_stop_tmp")
 litents_clean_stats=$(print_stats "$litents_clean_tmp")
-tmux_init_stats=$(print_stats "$tmux_init_tmp")
-tmux_new_stats=$(print_stats "$tmux_new_tmp")
-tmux_list_stats=$(print_stats "$tmux_list_tmp")
-tmux_kill_stats=$(print_stats "$tmux_kill_tmp")
 zellij_init_stats=$(print_stats "$zellij_init_tmp")
 zellij_new_stats=$(print_stats "$zellij_new_tmp")
 zellij_list_stats=$(print_stats "$zellij_list_tmp")
@@ -253,6 +282,11 @@ zellij_kill_stats=$(print_stats "$zellij_kill_tmp")
 codex_app_start_stats=$(print_stats "$codex_app_start_tmp")
 codex_app_health_stats=$(print_stats "$codex_app_health_tmp")
 codex_app_stop_stats=$(print_stats "$codex_app_stop_tmp")
+aoe_init_stats=$(print_stats "$aoe_init_tmp")
+aoe_start_stats=$(print_stats "$aoe_start_tmp")
+aoe_status_stats=$(print_stats "$aoe_status_tmp")
+aoe_stop_stats=$(print_stats "$aoe_stop_tmp")
+aoe_remove_stats=$(print_stats "$aoe_remove_tmp")
 
 zellij_version="not installed"
 if (( HAS_ZELLIJ == 1 )); then
@@ -262,6 +296,11 @@ fi
 codex_version="not installed"
 if command -v codex >/dev/null 2>&1; then
   codex_version="$(codex --version)"
+fi
+
+aoe_version="not installed"
+if (( HAS_AOE == 1 )); then
+  aoe_version="$(aoe --version)"
 fi
 
 litents_ref="$(git -C "$ROOT_DIR" rev-parse --short HEAD)"
@@ -278,33 +317,32 @@ Host: $(uname -sm)
 Go: $(go version | awk '{print $3}')
 Litents binary: $LITENTS_BIN
 Litents source: $litents_ref
-tmux: $(tmux -V)
 Zellij: $zellij_version
 Codex: $codex_version
+Agent of Empires: $aoe_version
 
 Method:
 - Synthetic command workload: \`sleep ${WORKLOAD_SECONDS}; echo done\`
 - Number of repeats: $RUNS
 - Scope: one agent window in one project, no model/network calls.
 - Litents config: \`codex_command: sh\`, \`codex_args: ["-lc"]\`, \`--no-worktree\`, \`--no-watch\`
-- tmux baseline: one session + one additional window using the same workload script
 - Zellij baseline: one detached background session + one tab using the same workload script
 - Codex app-server baseline: \`codex app-server --listen ws://127.0.0.1:<port>\` startup, health check, and process stop
+- Agent of Empires baseline: temporary fake \`codex\` shim on \`PATH\`, \`aoe init\`, \`aoe add\`, \`aoe session start\`, JSON status, stop, and remove
 - Codex desktop app itself is not measured here because launching and driving a macOS GUI app is not reproducible in this headless harness
 
 ### Raw timing summary
 
-Metric | Litents | tmux | Zellij | Codex app-server
+Metric | Litents | Zellij | Codex app-server | Agent of Empires
 ---|---|---|---|---
-Initialize control surface | $litents_init_stats | $tmux_init_stats | $zellij_init_stats | $codex_app_start_stats
-Start one workload | $litents_new_stats | $tmux_new_stats | $zellij_new_stats | N/A
-Status/list/health poll | $litents_status_stats | $tmux_list_stats | $zellij_list_stats | $codex_app_health_stats
-Stop control surface | $litents_stop_stats | $tmux_kill_stats | $zellij_kill_stats | $codex_app_stop_stats
-Cleanup state files | $litents_clean_stats | N/A | N/A | N/A
-
+Initialize control surface | $litents_init_stats | $zellij_init_stats | $codex_app_start_stats | $aoe_init_stats
+Start one workload | $litents_new_stats | $zellij_new_stats | N/A | $aoe_start_stats
+Status/list/health poll | $litents_status_stats | $zellij_list_stats | $codex_app_health_stats | $aoe_status_stats
+Stop control surface | $litents_stop_stats | $zellij_kill_stats | $codex_app_stop_stats | $aoe_stop_stats
+Cleanup state files | $litents_clean_stats | N/A | N/A | $aoe_remove_stats
 
 EOF_REPORT
 
-rm -f "$litents_init_tmp" "$litents_new_tmp" "$litents_status_tmp" "$litents_stop_tmp" "$litents_clean_tmp" "$tmux_init_tmp" "$tmux_new_tmp" "$tmux_list_tmp" "$tmux_kill_tmp" "$zellij_init_tmp" "$zellij_new_tmp" "$zellij_list_tmp" "$zellij_kill_tmp" "$codex_app_start_tmp" "$codex_app_health_tmp" "$codex_app_stop_tmp"
+rm -f "$litents_init_tmp" "$litents_new_tmp" "$litents_status_tmp" "$litents_stop_tmp" "$litents_clean_tmp" "$zellij_init_tmp" "$zellij_new_tmp" "$zellij_list_tmp" "$zellij_kill_tmp" "$codex_app_start_tmp" "$codex_app_health_tmp" "$codex_app_stop_tmp" "$aoe_init_tmp" "$aoe_start_tmp" "$aoe_status_tmp" "$aoe_stop_tmp" "$aoe_remove_tmp"
 
 printf 'Comparison report written to: %s\n' "$RESULT_FILE"

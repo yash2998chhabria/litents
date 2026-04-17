@@ -11,6 +11,8 @@ jobs:
   test:
     name: Go test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,3 +24,28 @@ jobs:
 
       - name: Run tests
         run: go test ./...
+
+  e2e:
+    name: End-to-end feature matrix
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install tmux
+        run: |
+          if ! command -v tmux >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y tmux
+          fi
+
+      - name: Run end-to-end feature matrix
+        run: ./benchmarking_md/e2e-feature-matrix.sh

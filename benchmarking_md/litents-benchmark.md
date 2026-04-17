@@ -90,6 +90,9 @@ This track shows whether Litents stays low-overhead in the real world.
 2. **Raw tmux + Codex CLI + shell scripts**
    - this is the true lightweight baseline
    - Litents should aim to stay as close to this as possible while adding orchestration features
+   - status: baseline run implemented
+   - script: [compare-with-popular-tools.sh](compare-with-popular-tools.sh)
+   - latest data: [tool-comparison-results.md](tool-comparison-results.md)
 
 3. **Zellij + Codex CLI**
    - modern terminal-native session manager baseline

@@ -153,19 +153,19 @@ go test ./... -bench . -run '^$' -benchmem
 ### Latest results (macOS, go1.26.2, apple m4)
 
 - `internal/config`
-  - `BenchmarkDefaultConfig`: `32.4 ns/op`, `0 B/op`, `0 allocs/op`
-  - `BenchmarkLoadConfig`: `15.2 µs/op`, `2112 B/op`, `33 allocs/op`
-  - `BenchmarkSaveConfig`: `35.3 µs/op`, `2915 B/op`, `10 allocs/op`
+  - `BenchmarkDefaultConfig`: `33.33 ns/op`, `0 B/op`, `0 allocs/op`
+  - `BenchmarkLoadConfig`: `15.84 µs/op`, `2112 B/op`, `33 allocs/op`
+  - `BenchmarkSaveConfig`: `36.97 µs/op`, `2916 B/op`, `10 allocs/op`
 - `internal/core`
-  - `BenchmarkFormatDuration`: `28.4 ns/op`, `2 B/op`, `0 allocs/op`
-  - `BenchmarkMatchesAny`: `642 ns/op`, `2104 B/op`, `18 allocs/op`
-  - `BenchmarkMatchDoneLog`: `865 ns/op`, `2152 B/op`, `17 allocs/op`
-  - `BenchmarkIsQuiet`: `11.2 ns/op`, `0 B/op`, `0 allocs/op`
-  - `BenchmarkReadFileTailSafe`: `31.0 µs/op`, `9224 B/op`, `1006 allocs/op`
+  - `BenchmarkFormatDuration`: `28.39 ns/op`, `2 B/op`, `0 allocs/op`
+  - `BenchmarkMatchesAny`: `656.7 ns/op`, `2105 B/op`, `18 allocs/op`
+  - `BenchmarkMatchDoneLog`: `876.7 ns/op`, `2153 B/op`, `17 allocs/op`
+  - `BenchmarkIsQuiet`: `11.29 ns/op`, `0 B/op`, `0 allocs/op`
+  - `BenchmarkReadFileTailSafe`: `31.80 µs/op`, `9224 B/op`, `1006 allocs/op`
 - `internal/state`
-  - `BenchmarkSaveLoadProjects` (100 projects): `1.32 ms/op`, `176.7 KB/op`, `1719 allocs/op`
-  - `BenchmarkLoadAgents` (100 agents): `1.85 ms/op`, `271.2 KB/op`, `2820 allocs/op`
-  - `BenchmarkSaveAgentOverwrite100x`: `37.4 µs/op`, `3164 B/op`, `14 allocs/op`
+  - `BenchmarkSaveLoadProjects` (100 projects): `1.31 ms/op`, `176.7 KB/op`, `1719 allocs/op`
+  - `BenchmarkLoadAgents` (100 agents): `1.66 ms/op`, `271.2 KB/op`, `2820 allocs/op`
+  - `BenchmarkSaveAgentOverwrite100x`: `38.4 µs/op`, `3180 B/op`, `14 allocs/op`
 
 ### End-to-end justification
 
@@ -177,6 +177,42 @@ These results show Litents core orchestration operations are tiny and predictabl
 That gives us confidence that Litents adds minimal local orchestration overhead and stays lightweight for the operator-facing workflows defined in the project spec.
 
 Full raw output: [benchmarking_md/last_bench_results.md](benchmarking_md/last_bench_results.md)
+
+### Competitive comparison vs popular local managers
+
+We now benchmark Litents against a lean `tmux` baseline using the same synthetic workload (`sleep 0.45; echo done`) with no Codex model calls:
+
+Command:
+
+```bash
+./benchmarking_md/compare-with-popular-tools.sh
+```
+
+Latest run (20 repeats, macOS, darwin/arm64, go1.26.2):
+
+| Metric | Litents | tmux |
+| --- | ---: | ---: |
+| Initialize project/session | 20 runs, mean=38.20ms (p50=26ms, p95=47ms, min=24ms, max=244ms) | 20 runs, mean=7.25ms (p50=7ms, p95=9ms, min=6ms, max=9ms) |
+| Start one agent workload | 20 runs, mean=20.15ms (p50=19ms, p95=25ms, min=18ms, max=27ms) | 20 runs, mean=6.75ms (p50=7ms, p95=8ms, min=6ms, max=8ms) |
+| Status/list poll | 20 runs, mean=10.10ms (p50=10ms, p95=12ms, min=9ms, max=13ms) | 20 runs, mean=5.30ms (p50=5ms, p95=6ms, min=4ms, max=6ms) |
+| Stop/cleanup command | 20 runs, mean=725.30ms (p50=726ms, p95=727ms, min=717ms, max=729ms) | 20 runs, mean=5.55ms (p50=5ms, p95=7ms, min=4ms, max=7ms) |
+| Cleanup state files | 20 runs, mean=45.75ms (p50=43ms, p95=72ms, min=35ms, max=88ms) | N/A |
+
+The `tmux` control-plane benchmark is intentionally lower bound; Litents currently shows more overhead mostly in state persistence + command lifecycle work (`stop` + `clean`) while preserving richer process state than tmux-only control.
+
+Zellij and Codex app comparisons are not part of the current automated harness yet (both require additional interactive/session handling for reproducible headless execution).
+Full comparison output is in [benchmarking_md/tool-comparison-results.md](benchmarking_md/tool-comparison-results.md).
+
+## Validation
+
+Use this command set for end-to-end confidence:
+
+```bash
+go test ./...
+go test ./... -bench . -run '^$' -benchmem
+./benchmarking_md/compare-with-popular-tools.sh
+./benchmarking_md/e2e-feature-matrix.sh
+```
 
 ## Release
 

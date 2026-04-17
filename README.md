@@ -136,48 +136,6 @@ go build -o litents ./cmd/litents
 
 ## Benchmarks
 
-### Why these were benchmarked
-
-Benchmarking here is focused on core Litents overhead so we can separate orchestrator overhead from external model latency. The benchmark plan is in [benchmarking_md/litents-benchmark.md](benchmarking_md/litents-benchmark.md).
-
-### Benchmark scope
-
-We run package-level microbenchmarks for config, core parsing/refresh helpers, and state persistence to quantify the control-plane cost before and independent of real `codex` runtime.
-
-### Command
-
-```bash
-go test ./... -bench . -run '^$' -benchmem
-```
-
-### Latest results (macOS, go1.26.2, apple m4)
-
-- `internal/config`
-  - `BenchmarkDefaultConfig`: `33.33 ns/op`, `0 B/op`, `0 allocs/op`
-  - `BenchmarkLoadConfig`: `15.84 µs/op`, `2112 B/op`, `33 allocs/op`
-  - `BenchmarkSaveConfig`: `36.97 µs/op`, `2916 B/op`, `10 allocs/op`
-- `internal/core`
-  - `BenchmarkFormatDuration`: `28.39 ns/op`, `2 B/op`, `0 allocs/op`
-  - `BenchmarkMatchesAny`: `656.7 ns/op`, `2105 B/op`, `18 allocs/op`
-  - `BenchmarkMatchDoneLog`: `876.7 ns/op`, `2153 B/op`, `17 allocs/op`
-  - `BenchmarkIsQuiet`: `11.29 ns/op`, `0 B/op`, `0 allocs/op`
-  - `BenchmarkReadFileTailSafe`: `31.80 µs/op`, `9224 B/op`, `1006 allocs/op`
-- `internal/state`
-  - `BenchmarkSaveLoadProjects` (100 projects): `1.31 ms/op`, `176.7 KB/op`, `1719 allocs/op`
-  - `BenchmarkLoadAgents` (100 agents): `1.66 ms/op`, `271.2 KB/op`, `2820 allocs/op`
-  - `BenchmarkSaveAgentOverwrite100x`: `38.4 µs/op`, `3180 B/op`, `14 allocs/op`
-
-### End-to-end justification
-
-These results show Litents core orchestration operations are tiny and predictable compared to external work:
-- configuration and state helpers are microsecond-scale;
-- status/rule matching and log tail sampling stay in the low-microsecond range;
-- list/load paths for 100 agents are low-millisecond, validating fast local recovery and history scanning.
-
-That gives us confidence that Litents adds minimal local orchestration overhead and stays lightweight for the operator-facing workflows defined in the project spec.
-
-Full raw output: [benchmarking_md/last_bench_results.md](benchmarking_md/last_bench_results.md)
-
 ### Competitive comparison vs popular local managers
 
 Litents is currently benchmarked against a lean `tmux` baseline using the same synthetic workload (`sleep 0.45; echo done`) with no Codex model calls:

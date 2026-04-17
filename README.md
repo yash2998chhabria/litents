@@ -147,4 +147,4 @@ Release builds target:
 ## Design source
 
 Primary architecture notes are in
-[litents.md](/Users/yashchhabria/Projects/litents/litents.md).
+[litents.md](litents.md).

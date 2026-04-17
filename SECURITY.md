@@ -1,9 +1,13 @@
 # Security Policy
 
-If you discover a security issue, please report it by creating a private disclosure email to:
+If you discover a security issue, please report it via GitHub Security Advisories on this repository.
 
-- `security@domain.invalid`
+1. Open the repository page.
+2. Go to **Security** -> **Advisories**.
+3. Submit a private report with:
+   - affected version/commit
+   - clear reproduction steps
+   - impact assessment
+   - environment details
 
-We appreciate responsible reporting. Please include steps to reproduce, impact, and environment details.
-
-If your issue is also a valid bug, it can be filed as an issue, but do not disclose potentially sensitive exploit details publicly.
+Please avoid opening a public issue for security-sensitive findings.

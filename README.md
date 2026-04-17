@@ -180,7 +180,7 @@ Full raw output: [benchmarking_md/last_bench_results.md](benchmarking_md/last_be
 
 ### Competitive comparison vs popular local managers
 
-We now benchmark Litents against a lean `tmux` baseline using the same synthetic workload (`sleep 0.45; echo done`) with no Codex model calls:
+Litents is currently benchmarked against a lean `tmux` baseline using the same synthetic workload (`sleep 0.45; echo done`) with no Codex model calls:
 
 Command:
 
@@ -197,6 +197,15 @@ Latest run (20 repeats, macOS, darwin/arm64, go1.26.2):
 | Status/list poll | 20 runs, mean=10.10ms (p50=10ms, p95=12ms, min=9ms, max=13ms) | 20 runs, mean=5.30ms (p50=5ms, p95=6ms, min=4ms, max=6ms) |
 | Stop/cleanup command | 20 runs, mean=725.30ms (p50=726ms, p95=727ms, min=717ms, max=729ms) | 20 runs, mean=5.55ms (p50=5ms, p95=7ms, min=4ms, max=7ms) |
 | Cleanup state files | 20 runs, mean=45.75ms (p50=43ms, p95=72ms, min=35ms, max=88ms) | N/A |
+
+### Readable summary
+
+| Area | Litents | tmux baseline | Takeaway |
+| --- | --- | --- | --- |
+| Control-plane startup | +427% slower than tmux baseline | +0% | expected for richer state/session orchestration |
+| Agent launch | +198% slower | +0% | still sub-25ms average for startup path |
+| Status polling | +91% slower | +0% | additional refresh + state persistence |
+| Stop/cleanup | +13,100%+ | +0% | includes state/status reconciliation + cleanup safety |
 
 The `tmux` control-plane benchmark is intentionally lower bound; Litents currently shows more overhead mostly in state persistence + command lifecycle work (`stop` + `clean`) while preserving richer process state than tmux-only control.
 

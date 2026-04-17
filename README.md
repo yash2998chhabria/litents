@@ -192,7 +192,25 @@ Full timing output is in [benchmarking_md/tool-comparison-results.md](benchmarki
 
 ### Resource usage
 
-Resource benchmarks use the same headless lifecycle shape but measure peak RSS and CPU time for each lifecycle command. Litents has no resident daemon after commands exit, so these numbers represent orchestration command overhead rather than a terminal emulator or desktop GUI memory profile. The benchmark now covers the operator surface too: dashboard, peek, discovery, adoption, and untracking.
+The cleanest performance comparison is steady-state CPU/RAM while agents are already running. This measures the tool runtime process tree plus managed synthetic agent panes, not command startup memory.
+
+Command:
+
+```bash
+./benchmarking_md/compare-running-agents-resource.sh
+```
+
+Latest running-agent comparison (5 synthetic agents per tool, 5 samples, macOS, darwin/arm64):
+
+| Tool | Running agents | RAM RSS | CPU |
+| --- | ---: | ---: | ---: |
+| Litents | 5 | 5 samples, mean=35.72MiB (p50=35.72MiB, p95=35.72MiB, min=35.72MiB, max=35.72MiB) | 5 samples, mean=0.00% (p50=0.00%, p95=0.00%, min=0.00%, max=0.00%) |
+| Zellij | 5 | 5 samples, mean=149.26MiB (p50=149.25MiB, p95=149.25MiB, min=149.25MiB, max=149.28MiB) | 5 samples, mean=0.40% (p50=0.10%, p95=0.60%, min=0.00%, max=1.30%) |
+| Agent of Empires | 5 | 5 samples, mean=18.27MiB (p50=18.27MiB, p95=18.27MiB, min=18.27MiB, max=18.27MiB) | 5 samples, mean=0.00% (p50=0.00%, p95=0.00%, min=0.00%, max=0.00%) |
+
+Full running-agent output is in [benchmarking_md/running-agents-resource-results.md](benchmarking_md/running-agents-resource-results.md).
+
+Command lifecycle resource benchmarks use the same headless lifecycle shape but measure peak RSS and CPU time for each lifecycle command. Litents has no resident daemon after commands exit, so these numbers represent orchestration command overhead rather than a terminal emulator or desktop GUI memory profile. The benchmark covers the operator surface too: dashboard, peek, discovery, adoption, and untracking.
 
 Command:
 
@@ -270,6 +288,7 @@ Use this command set for end-to-end confidence:
 go test ./...
 go test ./... -bench . -run '^$' -benchmem
 ./benchmarking_md/compare-with-popular-tools.sh
+./benchmarking_md/compare-running-agents-resource.sh
 ./benchmarking_md/compare-resource-usage.sh
 ./benchmarking_md/compare-orchestrator-probes.sh
 ./benchmarking_md/e2e-feature-matrix.sh

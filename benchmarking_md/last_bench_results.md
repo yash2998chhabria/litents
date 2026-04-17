@@ -93,6 +93,7 @@ Interpretation:
 ## Resource run (2026-04-17)
 
 Files:
+- [benchmarking_md/running-agents-resource-results.md](benchmarking_md/running-agents-resource-results.md)
 - [benchmarking_md/resource-comparison-results.md](benchmarking_md/resource-comparison-results.md)
 - [benchmarking_md/orchestrator-probe-results.md](benchmarking_md/orchestrator-probe-results.md)
 
@@ -106,6 +107,14 @@ Environment:
 - CCManager: 4.1.7
 - Sidecar: 0.83.0
 - Crystal: 0.3.5 GUI app installed
+
+Latest running-agent CPU/RAM summary:
+
+| Tool | Running agents | RAM RSS | CPU |
+| --- | ---: | ---: | ---: |
+| Litents | 5 | 5 samples, mean=35.72MiB | 5 samples, mean=0.00% |
+| Zellij | 5 | 5 samples, mean=149.26MiB | 5 samples, mean=0.40% |
+| Agent of Empires | 5 | 5 samples, mean=18.27MiB | 5 samples, mean=0.00% |
 
 Latest lifecycle peak RSS summary:
 

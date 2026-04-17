@@ -61,7 +61,8 @@ This track measures the thing we care about most:
 
 Current implemented scripts:
 - [compare-with-popular-tools.sh](compare-with-popular-tools.sh) measures lifecycle latency.
-- [compare-resource-usage.sh](compare-resource-usage.sh) measures lifecycle command peak RSS and CPU time. Once PR1 lands, this should remain the source of truth for the new operator surface too, especially `dash`, `discover`, `adopt`, and `untrack`.
+- [compare-running-agents-resource.sh](compare-running-agents-resource.sh) measures steady-state CPU and RAM while agents are already running.
+- [compare-resource-usage.sh](compare-resource-usage.sh) measures lifecycle command peak RSS and CPU time, including the operator surface: `dash`, `discover`, `adopt`, and `untrack`.
 - [compare-orchestrator-probes.sh](compare-orchestrator-probes.sh) covers every named orchestrator with either a CLI/TUI resource probe or install/workflow status.
 
 ### Track B — Real Codex end-to-end benchmark

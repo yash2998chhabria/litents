@@ -83,3 +83,47 @@ Interpretation:
 - Codex desktop app is represented by the headless `codex app-server` startup and health path, not the GUI shell.
 - Agent of Empires is measured with a temporary fake `codex` shim so the harness exercises its real session lifecycle without model or network calls.
 - The biggest Litents gap is still stop/cleanup because it waits for graceful interrupt before force cleanup.
+
+## Resource run (2026-04-17)
+
+Files:
+- [benchmarking_md/resource-comparison-results.md](benchmarking_md/resource-comparison-results.md)
+- [benchmarking_md/orchestrator-probe-results.md](benchmarking_md/orchestrator-probe-results.md)
+
+Environment:
+- Host: Darwin arm64
+- Go: go1.26.2
+- Zellij: 0.44.1
+- Codex CLI: 0.120.0
+- Agent of Empires: 1.4.3
+- Claude Squad: 1.0.17
+- CCManager: 4.1.7
+- Sidecar: 0.83.0
+- Crystal: 0.3.5 GUI app installed
+
+Latest lifecycle peak RSS summary:
+
+| Metric | Litents | Zellij | Codex app-server | Agent of Empires |
+| --- | ---: | ---: | ---: | ---: |
+| Initialize control surface | 10 runs, mean=5.19MiB | 10 runs, mean=14.74MiB | 10 runs, mean=4.71MiB | 10 runs, mean=8.18MiB |
+| Start one workload | 10 runs, mean=5.06MiB | 10 runs, mean=13.78MiB | N/A | 10 runs, mean=25.47MiB |
+| Status/list/health poll | 10 runs, mean=5.10MiB | 10 runs, mean=13.59MiB | 10 runs, mean=4.71MiB | 10 runs, mean=8.76MiB |
+| Stop control surface | 10 runs, mean=5.32MiB | 10 runs, mean=13.34MiB | 10 runs, mean=1.86MiB | 10 runs, mean=8.91MiB |
+| Cleanup state files | 10 runs, mean=5.32MiB | N/A | N/A | 10 runs, mean=8.80MiB |
+
+Latest all-orchestrator probe RSS summary:
+
+| Product | Probe | Peak RSS |
+| --- | --- | ---: |
+| Litents | `litents doctor` | 20 runs, mean=4.34MiB |
+| Claude Squad | `claude-squad version` | 20 runs, mean=5.91MiB |
+| Agent of Empires | `aoe --version` | 20 runs, mean=8.15MiB |
+| Zellij | `zellij --version` | 20 runs, mean=10.30MiB |
+| Codex CLI | `codex --version` | 20 runs, mean=16.04MiB |
+| Sidecar Workspaces | `sidecar --version` | 20 runs, mean=28.33MiB |
+| CCManager | `ccmanager --version` | 20 runs, mean=67.43MiB |
+
+Interpretation:
+- Litents lifecycle command peak RSS is consistently around 5 MiB in the synthetic local harness.
+- The all-orchestrator probe covers every named competitor: benchmarked lifecycle tools, installed CLI/TUI tools, installed GUI-only Crystal, and blocked/manual GUI products.
+- GUI-first products are not assigned fake lifecycle timings because they do not expose stable non-interactive agent/session commands.

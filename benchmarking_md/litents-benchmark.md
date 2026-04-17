@@ -59,6 +59,11 @@ This track measures the thing we care about most:
 - resume performance,
 - crash recovery.
 
+Current implemented scripts:
+- [compare-with-popular-tools.sh](compare-with-popular-tools.sh) measures lifecycle latency.
+- [compare-resource-usage.sh](compare-resource-usage.sh) measures lifecycle command peak RSS and CPU time.
+- [compare-orchestrator-probes.sh](compare-orchestrator-probes.sh) covers every named orchestrator with either a CLI/TUI resource probe or install/workflow status.
+
 ### Track B — Real Codex end-to-end benchmark
 
 Use actual Codex CLI with the **same**:
@@ -112,11 +117,16 @@ This track shows whether Litents stays low-overhead in the real world.
 5. **Claude Squad / CCManager / Sidecar Workspaces**
    - compare when the harness can create and drive sessions non-interactively
    - status: installed/probed locally; lifecycle harness pending
+   - latest probes: [orchestrator-probe-results.md](orchestrator-probe-results.md)
    - latest notes: [product-comparison-results.md](product-comparison-results.md)
 
 6. **Agent Hand / Agent Deck**
    - compare when upstream install paths are reproducible in CI/local automation
    - latest notes: [product-comparison-results.md](product-comparison-results.md)
+
+7. **Crystal / Conductor / CodeAgentSwarm / Termyx**
+   - compare as product/workflow competitors unless they expose a stable non-interactive automation API
+   - Crystal is locally installed as a GUI app and recorded in [orchestrator-probe-results.md](orchestrator-probe-results.md)
 
 ### What not to benchmark as a primary baseline
 

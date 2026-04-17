@@ -170,6 +170,52 @@ The Codex desktop app itself is not measured because a macOS GUI app cannot be d
 
 Full timing output is in [benchmarking_md/tool-comparison-results.md](benchmarking_md/tool-comparison-results.md). Broader competitor notes are in [benchmarking_md/product-comparison-results.md](benchmarking_md/product-comparison-results.md).
 
+### Resource usage
+
+Resource benchmarks use the same headless lifecycle shape but measure peak RSS and CPU time for each lifecycle command. Litents has no resident daemon after commands exit, so these numbers represent orchestration command overhead rather than a terminal emulator or desktop GUI memory profile.
+
+Command:
+
+```bash
+./benchmarking_md/compare-resource-usage.sh
+```
+
+Latest peak RSS summary (10 repeats, macOS, darwin/arm64):
+
+| Metric | Litents | Zellij | Codex app-server | Agent of Empires |
+| --- | ---: | ---: | ---: | ---: |
+| Initialize control surface | 10 runs, mean=5.19MiB (p50=5.11MiB, p95=5.39MiB, min=4.92MiB, max=5.44MiB) | 10 runs, mean=14.74MiB (p50=14.72MiB, p95=14.80MiB, min=14.61MiB, max=14.83MiB) | 10 runs, mean=4.71MiB (p50=4.70MiB, p95=4.75MiB, min=4.70MiB, max=4.75MiB) | 10 runs, mean=8.18MiB (p50=8.17MiB, p95=8.20MiB, min=8.11MiB, max=8.23MiB) |
+| Start one workload | 10 runs, mean=5.06MiB (p50=5.02MiB, p95=5.09MiB, min=4.98MiB, max=5.36MiB) | 10 runs, mean=13.78MiB (p50=13.78MiB, p95=13.83MiB, min=13.66MiB, max=13.86MiB) | N/A | 10 runs, mean=25.47MiB (p50=25.47MiB, p95=25.64MiB, min=25.23MiB, max=25.69MiB) |
+| Status/list/health poll | 10 runs, mean=5.10MiB (p50=5.11MiB, p95=5.20MiB, min=4.92MiB, max=5.22MiB) | 10 runs, mean=13.59MiB (p50=13.59MiB, p95=13.67MiB, min=13.50MiB, max=13.69MiB) | 10 runs, mean=4.71MiB (p50=4.70MiB, p95=4.73MiB, min=4.70MiB, max=4.73MiB) | 10 runs, mean=8.76MiB (p50=8.75MiB, p95=8.80MiB, min=8.72MiB, max=8.83MiB) |
+| Stop control surface | 10 runs, mean=5.32MiB (p50=5.28MiB, p95=5.48MiB, min=5.16MiB, max=5.48MiB) | 10 runs, mean=13.34MiB (p50=13.34MiB, p95=13.47MiB, min=13.22MiB, max=13.47MiB) | 10 runs, mean=1.86MiB (p50=1.86MiB, p95=1.86MiB, min=1.86MiB, max=1.86MiB) | 10 runs, mean=8.91MiB (p50=8.89MiB, p95=8.94MiB, min=8.86MiB, max=8.95MiB) |
+| Cleanup state files | 10 runs, mean=5.32MiB (p50=5.27MiB, p95=5.52MiB, min=5.02MiB, max=5.53MiB) | N/A | N/A | 10 runs, mean=8.80MiB (p50=8.80MiB, p95=8.83MiB, min=8.72MiB, max=8.89MiB) |
+
+All resource output is in [benchmarking_md/resource-comparison-results.md](benchmarking_md/resource-comparison-results.md).
+
+### All-orchestrator probe coverage
+
+Every named orchestrator is covered in the repo. CLI/TUI products get a repeatable probe for peak RSS and CPU; GUI-first products get install/discovery status rather than fabricated shell lifecycle numbers.
+
+Command:
+
+```bash
+./benchmarking_md/compare-orchestrator-probes.sh
+```
+
+Latest installed CLI/TUI probe summary:
+
+| Product | Local status | Probe | Peak RSS |
+| --- | --- | --- | ---: |
+| Litents | local source build | `litents doctor` | 20 runs, mean=4.34MiB (p50=4.31MiB, p95=4.42MiB, min=4.27MiB, max=4.44MiB) |
+| Claude Squad | 1.0.17 | `claude-squad version` | 20 runs, mean=5.91MiB (p50=5.89MiB, p95=6.05MiB, min=5.80MiB, max=6.06MiB) |
+| Agent of Empires | 1.4.3 | `aoe --version` | 20 runs, mean=8.15MiB (p50=8.16MiB, p95=8.16MiB, min=8.12MiB, max=8.16MiB) |
+| Zellij | 0.44.1 | `zellij --version` | 20 runs, mean=10.30MiB (p50=10.30MiB, p95=10.33MiB, min=10.27MiB, max=10.34MiB) |
+| Codex CLI | 0.120.0 | `codex --version` | 20 runs, mean=16.04MiB (p50=16.03MiB, p95=16.09MiB, min=15.98MiB, max=16.09MiB) |
+| Sidecar Workspaces | 0.83.0 | `sidecar --version` | 20 runs, mean=28.33MiB (p50=28.27MiB, p95=28.84MiB, min=27.98MiB, max=29.19MiB) |
+| CCManager | 4.1.7 | `ccmanager --version` | 20 runs, mean=67.43MiB (p50=67.44MiB, p95=67.55MiB, min=67.14MiB, max=67.61MiB) |
+
+Full coverage matrix is in [benchmarking_md/orchestrator-probe-results.md](benchmarking_md/orchestrator-probe-results.md).
+
 ### Competitive landscape
 
 | Product | Status in this repo | What it is good at | Litents comparison |
@@ -179,10 +225,10 @@ Full timing output is in [benchmarking_md/tool-comparison-results.md](benchmarki
 | [Agent of Empires](https://www.agent-of-empires.com/) | Automated lifecycle benchmark | Parallel agents with tmux sessions, branches, worktrees, optional Docker | Direct terminal-native competitor with broader sandbox/worktree scope |
 | [Claude Squad](https://github.com/smtg-ai/claude-squad) | Installed and version-probed | Multi-agent TUI for Claude Code, Codex, Gemini, Aider, Amp, and OpenCode | Very close CLI/TUI competitor; lifecycle benchmark needs interactive TUI automation |
 | [CCManager](https://github.com/kbwo/ccmanager) | Installed and version-probed | Multi-agent sessions across worktrees, projects, and many agent CLIs | Direct manager competitor; lifecycle benchmark needs TUI/worktree automation |
-| [Sidecar Workspaces](https://sidecar.haplab.com/docs/workspaces-plugin) | Installed and version-probed | Worktree branches, optional agents, tmux sessions, review/merge flow | Workflow-heavy peer; lifecycle benchmark needs plugin/workspace setup |
-| [Agent Hand](https://weykon.github.io/agent-hand/) | Install attempted, blocked by upstream access/install path | Fast tmux-backed terminal session manager for AI coding agents | Close terminal-native peer once install path is reproducible |
+| [Sidecar Workspaces](https://sidecar.haplab.com/docs/workspaces-plugin) | Installed and RSS/CPU-probed | Worktree branches, optional agents, tmux sessions, review/merge flow | Workflow-heavy peer; lifecycle benchmark needs plugin/workspace setup |
+| [Agent Hand](https://weykon.github.io/agent-hand/) | Install attempted, blocked by upstream release/source paths | Fast tmux-backed terminal session manager for AI coding agents | Close terminal-native peer once install path is reproducible |
 | [Agent Deck](https://asheshgoplani.github.io/agent-deck/) | Install attempted, blocked by upstream release asset and local CLT fallback | tmux command center for multiple coding-agent sessions | Session-visibility peer once install path is reproducible |
-| [Crystal](https://github.com/stravu/crystal) | Product/workflow comparison | Desktop app for Codex and Claude Code sessions in git worktrees | Direct desktop competitor with richer GUI UX |
+| [Crystal](https://github.com/stravu/crystal) | Installed GUI app, product/workflow comparison | Desktop app for Codex and Claude Code sessions in git worktrees | Direct desktop competitor with richer GUI UX |
 | [Conductor](https://docs.conductor.build/) | Product/workflow comparison | Mac app for teams of coding agents in isolated workspaces | Productized desktop competitor |
 | [CodeAgentSwarm](https://www.codeagentswarm.com/) | Product/workflow comparison | Multi-terminal macOS workspace with task board, history, and notifications | Integrated workspace competitor |
 | [Termyx](https://termyx.dev/) | Product/workflow comparison | Native macOS git-worktree IDE for Claude Code | GUI worktree/session competitor |
@@ -199,6 +245,8 @@ Use this command set for end-to-end confidence:
 go test ./...
 go test ./... -bench . -run '^$' -benchmem
 ./benchmarking_md/compare-with-popular-tools.sh
+./benchmarking_md/compare-resource-usage.sh
+./benchmarking_md/compare-orchestrator-probes.sh
 ./benchmarking_md/e2e-feature-matrix.sh
 ```
 

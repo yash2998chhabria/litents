@@ -1,0 +1,88 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - runner: ubuntu-latest
+            goos: linux
+            goarch: arm64
+          - runner: macos-latest
+            goos: darwin
+            goarch: amd64
+          - runner: macos-latest
+            goos: darwin
+            goarch: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go test ./...
+
+      - name: Build binary artifact
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w" \
+            -o "dist/litents-${{ matrix.goos }}-${{ matrix.goarch }}" \
+            ./cmd/litents
+          tar -czf "dist/litents_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz" \
+            -C dist "litents-${{ matrix.goos }}-${{ matrix.goarch }}"
+          shasum -a 256 "dist/litents_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz" \
+            > "dist/litents_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz.sha256"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: litents-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            dist/litents_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz
+            dist/litents_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz.sha256
+
+  release:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: litents-*
+          merge-multiple: true
+
+      - name: Create and upload release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.sha256
+          generate_release_notes: true

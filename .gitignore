@@ -1,0 +1,10 @@
+# Binaries
+dist/
+*.exe
+*.out
+*.tmp
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/

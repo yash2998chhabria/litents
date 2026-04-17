@@ -61,20 +61,24 @@ File: [benchmarking_md/tool-comparison-results.md](benchmarking_md/tool-comparis
 Environment:
 - Host: Darwin arm64
 - Go: go1.26.2
+- tmux: 3.6a
+- Zellij: 0.44.1
+- Codex CLI: 0.120.0
 - Workload: `sleep 0.45; echo done`
 - Repeats: 20
 
 Latest summary:
 
-| Metric | Litents | tmux |
-| --- | ---: | ---: |
-| Initialize project/session | 20 runs, mean=38.20ms (p50=26ms, p95=47ms, min=24ms, max=244ms) | 20 runs, mean=7.25ms (p50=7ms, p95=9ms, min=6ms, max=9ms) |
-| Start one agent workload | 20 runs, mean=20.15ms (p50=19ms, p95=25ms, min=18ms, max=27ms) | 20 runs, mean=6.75ms (p50=7ms, p95=8ms, min=6ms, max=8ms) |
-| Status/list poll | 20 runs, mean=10.10ms (p50=10ms, p95=12ms, min=9ms, max=13ms) | 20 runs, mean=5.30ms (p50=5ms, p95=6ms, min=4ms, max=6ms) |
-| Stop/cleanup command | 20 runs, mean=725.30ms (p50=726ms, p95=727ms, min=717ms, max=729ms) | 20 runs, mean=5.55ms (p50=5ms, p95=7ms, min=4ms, max=7ms) |
-| Cleanup state files | 20 runs, mean=45.75ms (p50=43ms, p95=72ms, min=35ms, max=88ms) | N/A |
+| Metric | Litents | tmux | Zellij | Codex app-server |
+| --- | ---: | ---: | ---: | ---: |
+| Initialize control surface | 20 runs, mean=38.80ms (p50=22ms, p95=28ms, min=20ms, max=358ms) | 20 runs, mean=7.05ms (p50=7ms, p95=10ms, min=5ms, max=13ms) | 20 runs, mean=49.10ms (p50=47ms, p95=59ms, min=43ms, max=70ms) | 20 runs, mean=41.70ms (p50=42ms, p95=44ms, min=38ms, max=49ms) |
+| Start one workload | 20 runs, mean=16.95ms (p50=16ms, p95=21ms, min=14ms, max=24ms) | 20 runs, mean=8.65ms (p50=6ms, p95=21ms, min=5ms, max=28ms) | 20 runs, mean=49.10ms (p50=46ms, p95=65ms, min=41ms, max=89ms) | N/A |
+| Status/list/health poll | 20 runs, mean=9.45ms (p50=9ms, p95=11ms, min=8ms, max=11ms) | 20 runs, mean=5.50ms (p50=5ms, p95=10ms, min=4ms, max=13ms) | 20 runs, mean=20.55ms (p50=20ms, p95=25ms, min=16ms, max=30ms) | 20 runs, mean=7.75ms (p50=7ms, p95=10ms, min=6ms, max=22ms) |
+| Stop control surface | 20 runs, mean=724.40ms (p50=724ms, p95=728ms, min=721ms, max=728ms) | 20 runs, mean=6.05ms (p50=5ms, p95=9ms, min=5ms, max=14ms) | 20 runs, mean=13.80ms (p50=13ms, p95=14ms, min=12ms, max=31ms) | 20 runs, mean=6.05ms (p50=3ms, p95=6ms, min=3ms, max=56ms) |
+| Cleanup state files | 20 runs, mean=37.25ms (p50=39ms, p95=45ms, min=28ms, max=49ms) | N/A | N/A | N/A |
 
 Interpretation:
-- Litents has higher startup and process lifecycle overhead than raw tmux.
-- The biggest gap is in stop/cleanup path because Litents persists status/state and validates runningness instead of closing panes directly.
-- Compared against a plain process tool, Litents trades latency for recovery + resume observability.
+- Litents remains close to raw terminal-control latencies while adding project and agent state.
+- Zellij is now measured directly in the headless harness as a detached session + tab baseline.
+- Codex desktop app is represented by the headless `codex app-server` startup and health path, not the GUI shell.
+- The biggest Litents gap is still stop/cleanup because it waits for graceful interrupt before force cleanup.

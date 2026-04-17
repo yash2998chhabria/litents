@@ -97,10 +97,15 @@ This track shows whether Litents stays low-overhead in the real world.
 3. **Zellij + Codex CLI**
    - modern terminal-native session manager baseline
    - good comparison for “lightweight but more productized than tmux”
+   - status: detached session + tab baseline implemented in [compare-with-popular-tools.sh](compare-with-popular-tools.sh)
+   - latest data: [tool-comparison-results.md](tool-comparison-results.md)
 
 4. **Codex app**
    - official OpenAI desktop multi-agent baseline
    - compare only on platforms where it exists
+   - status: headless `codex app-server` baseline implemented in [compare-with-popular-tools.sh](compare-with-popular-tools.sh)
+   - note: desktop GUI launch is not included because it is not reproducible in a headless shell harness
+   - latest data: [tool-comparison-results.md](tool-comparison-results.md)
 
 ### Optional baselines
 
